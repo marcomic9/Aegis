@@ -12,20 +12,13 @@ class LightstonePDFParser(PDFParser):
             doc = fitz.open(pdf_path)
             results = []
 
-            # Flexible pattern for: unit (digits), size (digits), name (words), identifier (digits, usually 13)
-            # Adjust if your identifier length differs
+            # Pattern matches: unit (digits), size (digits), name (words + spaces), identifier (13 digits)
             pattern = re.compile(
                 r"(\d+)\s+(\d+)\s+([A-Z\s]+?)\s+(\d{13})"
             )
 
-            print("=== SAMPLE TEXT BLOCKS FROM PDF ===")
             for page in doc:
-                blocks = page.get_text("blocks")
-                for i, block in enumerate(blocks[:5]):  # just show first 5 blocks per page for quick check
-                    text = block[4].strip()
-                    print(f"Block {i+1}:\n{text}\n---")
-
-                # Now extract matches from all blocks
+                blocks = page.get_text("blocks")    # type: ignore[attr-defined]
                 for block in blocks:
                     text = block[4].strip()
                     matches = pattern.findall(text)
@@ -51,7 +44,7 @@ class LightstonePDFParser(PDFParser):
             raise Exception(f"Error processing PDF: {str(e)}")
 
 def extract_data_from_pdf(pdf_path: str, format_type: str = "lightstone") -> List[Dict[str, str]]:
-    parsers: Dict[str, PDFParser] = {
+    parsers = {
         "lightstone": LightstonePDFParser()
     }
 
@@ -63,7 +56,7 @@ def extract_data_from_pdf(pdf_path: str, format_type: str = "lightstone") -> Lis
 
 def main():
     try:
-        pdf_path = "Owners in Flame manor.pdf"  # Change to your PDF file path
+        pdf_path = "Owners in Flame manor.pdf"  # Change to your actual PDF path
         data = extract_data_from_pdf(pdf_path, format_type="lightstone")
         print("\n=== EXTRACTED DATA ===")
         for entry in data:
