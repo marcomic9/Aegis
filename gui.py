@@ -7,15 +7,12 @@ from tkinterdnd2 import TkinterDnD, DND_FILES # Ensure TkinterDnD is imported co
 ctk.set_appearance_mode("System") # Options: "System", "Light", "Dark"
 ctk.set_default_color_theme("blue") # Options: "blue", "green", "dark-blue"
 
-class AegisApp(TkinterDnD.Tk, ctk.CTk):
+class AegisApp(TkinterDnD.Tk):
     def __init__(self):
-        TkinterDnD.Tk.__init__(self)
-        ctk.CTk.__init__(self) # Initialize CustomTkinter first
-
+        super().__init__()
         # --- TkinterDnD Initialization ---
-        # Load the native tkdnd extension using the application's Tcl interpreter.
         try:
-            self.tk.call('package', 'require', 'tkdnd') # Use self.tk (the app's interpreter)
+            self.tk.call('package', 'require', 'tkdnd')
             print("Successfully loaded 'tkdnd' package.")
         except Exception as e:
             print("⚠️ Failed to load 'tkdnd' package. Drag-and-drop may not work.")
@@ -25,21 +22,23 @@ class AegisApp(TkinterDnD.Tk, ctk.CTk):
         self.geometry("1200x750")
         self.minsize(1000, 650)
 
-        # Configure grid layout
-        self.grid_columnconfigure(0, weight=0)  # Left sidebar
-        self.grid_columnconfigure(1, weight=1)  # Main content area
-        self.grid_columnconfigure(2, weight=0)  # Right sidebar (Settings)
-        self.grid_rowconfigure(0, weight=1)     # Main row
+        # Main CTkFrame as the app container
+        self.app_frame = ctk.CTkFrame(self)
+        self.app_frame.pack(fill="both", expand=True)
+        self.app_frame.grid_columnconfigure(0, weight=0)
+        self.app_frame.grid_columnconfigure(1, weight=1)
+        self.app_frame.grid_rowconfigure(0, weight=1)
+        self.app_frame.grid_rowconfigure(1, weight=0)
 
-        # Initialize UI components
-        self.sidebar = Sidebar(self)
-        self.sidebar.grid(row=0, column=0, sticky="nswe", padx=10, pady=10)
+        # Initialize UI components in the CTkFrame
+        self.sidebar = Sidebar(self.app_frame)
+        self.sidebar.grid(row=0, column=0, sticky="nswe", padx=10, pady=(10, 0))
 
-        self.settings_sidebar = SettingsSidebar(self)
-        self.settings_sidebar.grid(row=0, column=2, sticky="nswe", padx=10, pady=10)
+        self.settings_sidebar = SettingsSidebar(self.app_frame)
+        self.settings_sidebar.grid(row=1, column=0, sticky="nswe", padx=10, pady=(0, 10))
 
-        self.main_content = MainContent(self)
-        self.main_content.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
+        self.main_content = MainContent(self.app_frame)
+        self.main_content.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=10, pady=10)
 
         # Enable drag-and-drop on the main app window (or specific widgets if preferred)
         # The DND_FILES type means it will accept file drops.
@@ -167,6 +166,24 @@ class ProcessPage(ctk.CTkScrollableFrame):
         self.grid_columnconfigure(0, weight=1)
         self.selected_files = [] # To store paths of selected/dropped files
 
+        # --- Profile selection for processing ---
+        ctk.CTkLabel(
+            self,
+            text="Select Virtual Agent Profile:",
+            font=ctk.CTkFont(size=13, weight="bold")
+        ).grid(row=0, column=0, padx=20, pady=(10, 2), sticky="w")
+        self.profile_values = ["Custom", "Marco's VA", "Admin VA"]
+        self.selected_profile = ctk.StringVar(value="Custom")
+        self.profile_menu = ctk.CTkOptionMenu(
+            self,
+            variable=self.selected_profile,
+            values=self.profile_values,
+            font=ctk.CTkFont(size=12),
+            dropdown_font=ctk.CTkFont(size=12),
+            corner_radius=8
+        )
+        self.profile_menu.grid(row=1, column=0, padx=20, pady=(0, 10), sticky="ew")
+
         # File drop/info area
         self.file_info_label = ctk.CTkLabel(
             self,
@@ -177,7 +194,7 @@ class ProcessPage(ctk.CTkScrollableFrame):
             font=ctk.CTkFont(size=14),
             corner_radius=10
         )
-        self.file_info_label.grid(row=0, column=0, padx=20, pady=20, sticky="ew")
+        self.file_info_label.grid(row=2, column=0, padx=20, pady=20, sticky="ew")
         self.file_info_label.bind("<Button-1>", self.browse_files) # Make label clickable
 
         # Browse button
@@ -188,7 +205,7 @@ class ProcessPage(ctk.CTkScrollableFrame):
             height=40,
             font=ctk.CTkFont(size=14),
             corner_radius=8
-        ).grid(row=1, column=0, pady=10, padx=20, sticky="ew")
+        ).grid(row=3, column=0, pady=10, padx=20, sticky="ew")
 
         # Checkbox for opening Excel
         self.open_excel_var = ctk.BooleanVar()
@@ -197,7 +214,7 @@ class ProcessPage(ctk.CTkScrollableFrame):
             text="Open Excel after processing",
             variable=self.open_excel_var,
             font=ctk.CTkFont(size=12)
-        ).grid(row=2, column=0, pady=10, padx=20, sticky="w")
+        ).grid(row=4, column=0, pady=10, padx=20, sticky="w")
 
         # Start button
         ctk.CTkButton(
@@ -207,7 +224,7 @@ class ProcessPage(ctk.CTkScrollableFrame):
             height=40,
             font=ctk.CTkFont(size=14),
             corner_radius=8
-        ).grid(row=3, column=0, pady=20, padx=20, sticky="ew")
+        ).grid(row=5, column=0, pady=20, padx=20, sticky="ew")
 
         # Status label
         self.status_label = ctk.CTkLabel(
@@ -215,7 +232,7 @@ class ProcessPage(ctk.CTkScrollableFrame):
             text="Status: Idle",
             font=ctk.CTkFont(size=12)
         )
-        self.status_label.grid(row=4, column=0, padx=20, pady=10, sticky="w")
+        self.status_label.grid(row=6, column=0, padx=20, pady=10, sticky="w")
 
     def browse_files(self, event=None):
         file_paths = fd.askopenfilenames(
@@ -250,10 +267,11 @@ class ProcessPage(ctk.CTkScrollableFrame):
         if not self.selected_files:
             self.update_status_label("No files selected to process!")
             return
-
-        self.update_status_label(f"Processing {len(self.selected_files)} file(s)...")
+        selected_profile = self.selected_profile.get()
+        self.update_status_label(f"Processing {len(self.selected_files)} file(s) with profile: {selected_profile}...")
         # --- Placeholder for actual processing logic ---
         print(f"Processing files: {self.selected_files}")
+        print(f"Selected profile: {selected_profile}")
         print(f"Open Excel after processing: {self.open_excel_var.get()}")
         # Simulate processing
         self.after(2000, self.on_processing_complete)
@@ -271,9 +289,22 @@ class CredentialsPage(ctk.CTkScrollableFrame):
 
         ctk.CTkLabel(
             self,
-            text="Create or manage your Virtual Agent profiles.",
-            font=ctk.CTkFont(size=14)
-        ).grid(row=0, column=0, pady=10, padx=20, sticky="w")
+            text="Select Profile:",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).grid(row=0, column=0, pady=(10, 5), padx=20, sticky="w")
+
+        # Profile values: 'Custom' for manual entry, others for saved profiles
+        self.profile_values = ["Custom", "Marco's VA", "Admin VA"]
+        self.profile_menu = ctk.CTkOptionMenu(
+            self,
+            values=self.profile_values,
+            command=self.on_profile_select,
+            font=ctk.CTkFont(size=12),
+            dropdown_font=ctk.CTkFont(size=12),
+            corner_radius=8
+        )
+        self.profile_menu.grid(row=1, column=0, pady=5, padx=20, sticky="ew")
+        self.profile_menu.set("Custom")
 
         # Profile inputs - store them as instance attributes to access their values
         self.entry_profile_name = ctk.CTkEntry(
@@ -281,14 +312,14 @@ class CredentialsPage(ctk.CTkScrollableFrame):
             placeholder_text="Profile Name (e.g., Marco's VA)",
             font=ctk.CTkFont(size=12)
         )
-        self.entry_profile_name.grid(row=1, column=0, pady=5, padx=20, sticky="ew")
+        self.entry_profile_name.grid(row=2, column=0, pady=5, padx=20, sticky="ew")
 
         self.entry_username = ctk.CTkEntry(
             self,
             placeholder_text="Username",
             font=ctk.CTkFont(size=12)
         )
-        self.entry_username.grid(row=2, column=0, pady=5, padx=20, sticky="ew")
+        self.entry_username.grid(row=3, column=0, pady=5, padx=20, sticky="ew")
 
         self.entry_password = ctk.CTkEntry(
             self,
@@ -296,7 +327,7 @@ class CredentialsPage(ctk.CTkScrollableFrame):
             show="*",
             font=ctk.CTkFont(size=12)
         )
-        self.entry_password.grid(row=3, column=0, pady=5, padx=20, sticky="ew")
+        self.entry_password.grid(row=4, column=0, pady=5, padx=20, sticky="ew")
 
         # Save credentials checkbox
         self.remember_var = ctk.BooleanVar()
@@ -305,7 +336,7 @@ class CredentialsPage(ctk.CTkScrollableFrame):
             text="Save credentials securely (placeholder)",
             variable=self.remember_var,
             font=ctk.CTkFont(size=12)
-        ).grid(row=4, column=0, pady=10, padx=20, sticky="w")
+        ).grid(row=5, column=0, pady=10, padx=20, sticky="w")
 
         ctk.CTkButton(
             self,
@@ -314,30 +345,30 @@ class CredentialsPage(ctk.CTkScrollableFrame):
             height=40,
             font=ctk.CTkFont(size=14),
             corner_radius=8
-        ).grid(row=5, column=0, pady=10, padx=20, sticky="ew")
+        ).grid(row=6, column=0, pady=10, padx=20, sticky="ew")
 
-        # Existing profiles section
-        ctk.CTkLabel(
-            self,
-            text="Or choose an existing profile:",
-            font=ctk.CTkFont(size=14)
-        ).grid(row=6, column=0, pady=(20, 5), padx=20, sticky="w")
-
-        # Dummy values for now, should be loaded from storage
-        self.profile_values = ["Marco's VA", "Admin VA"]
-        self.profile_menu = ctk.CTkOptionMenu(
-            self,
-            values=self.profile_values if self.profile_values else ["No profiles saved"],
-            command=self.load_credential,
-            font=ctk.CTkFont(size=12),
-            dropdown_font=ctk.CTkFont(size=12),
-            corner_radius=8
-        )
-        self.profile_menu.grid(row=7, column=0, pady=5, padx=20, sticky="ew")
-        if not self.profile_values:
-            self.profile_menu.set("No profiles saved")
+    def on_profile_select(self, selected_profile: str):
+        if selected_profile == "Custom":
+            self.entry_profile_name.configure(state="normal")
+            self.entry_username.configure(state="normal")
+            self.entry_password.configure(state="normal")
+            self.entry_profile_name.delete(0, 'end')
+            self.entry_username.delete(0, 'end')
+            self.entry_password.delete(0, 'end')
         else:
-            self.profile_menu.set("Select a profile") # Default text
+            # Example: fill with dummy data, disable editing
+            self.entry_profile_name.configure(state="normal")
+            self.entry_username.configure(state="normal")
+            self.entry_password.configure(state="normal")
+            self.entry_profile_name.delete(0, 'end')
+            self.entry_profile_name.insert(0, selected_profile)
+            self.entry_profile_name.configure(state="disabled")
+            self.entry_username.delete(0, 'end')
+            self.entry_username.insert(0, f"{selected_profile.split()[0].lower()}_user")
+            self.entry_username.configure(state="disabled")
+            self.entry_password.delete(0, 'end')
+            self.entry_password.insert(0, "dummyPassword")
+            self.entry_password.configure(state="disabled")
 
     def save_credentials(self):
         profile_name = self.entry_profile_name.get()
@@ -347,37 +378,20 @@ class CredentialsPage(ctk.CTkScrollableFrame):
 
         if not profile_name or not username: # Basic validation
             print("Profile Name and Username are required.")
-            # Optionally show a message to the user in the UI
             return
 
         print(f"Saving Credentials for Profile: {profile_name}")
         print(f"  Username: {username}")
         print(f"  Password: {'*' * len(password) if password else '(empty)'}")
         print(f"  Save Securely: {remember}")
-        # --- Placeholder for actual secure credential saving logic ---
-        # For example, add to self.profile_values and update OptionMenu
-        if profile_name not in self.profile_values:
+        # Add to profile_values if new and not 'Custom'
+        if profile_name not in self.profile_values and profile_name != "Custom":
             self.profile_values.append(profile_name)
             self.profile_menu.configure(values=self.profile_values)
-        self.profile_menu.set(profile_name) # Select the newly saved/updated profile
-
-    def load_credential(self, selected_profile: str):
-        if selected_profile == "No profiles saved" or selected_profile == "Select a profile":
-            self.entry_profile_name.delete(0, 'end')
-            self.entry_username.delete(0, 'end')
-            self.entry_password.delete(0, 'end')
-            return
-
-        print(f"Loading credentials for: {selected_profile}")
-        # --- Placeholder for actual credential loading logic ---
-        # This would typically fetch from a secure store based on selected_profile
-        # For demonstration, let's just populate with dummy data or clear:
-        self.entry_profile_name.delete(0, 'end')
-        self.entry_profile_name.insert(0, selected_profile)
-        self.entry_username.delete(0, 'end')
-        self.entry_username.insert(0, f"{selected_profile.split()[0].lower()}_user") # Dummy
-        self.entry_password.delete(0, 'end')
-        self.entry_password.insert(0, "dummyPassword") # Dummy
+        if profile_name != "Custom":
+            self.profile_menu.set(profile_name)
+        else:
+            self.profile_menu.set("Custom")
 
 
 class StatsPage(ctk.CTkScrollableFrame):
