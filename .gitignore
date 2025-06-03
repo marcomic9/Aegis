@@ -1,0 +1,20 @@
+# Python virtual environment
+venv/
+env/
+
+# PyInstaller output
+dist/
+build/
+*.spec
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Playwright browser binaries
+.playwright/
+
+# Generated files
+*.xlsx
