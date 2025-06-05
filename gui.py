@@ -125,10 +125,10 @@ class ProcessPage(ctk.CTkScrollableFrame):
         self.grid_columnconfigure(0, weight=1)
 
         self.selected_files = []
-        self.animation_id = None  # Store the after ID for animations
-        self.is_processing = False  # Track processing state
-        self.idle_color_index = 0  # Track idle animation color state
-        self.processing_dots = 0  # Track number of dots for processing animation
+        self.animation_id = None
+        self.is_processing = False
+        self.idle_color_index = 0
+        self.processing_dots = 0
 
         ctk.CTkLabel(
             self,
@@ -154,7 +154,6 @@ class ProcessPage(ctk.CTkScrollableFrame):
         self.profile_menu.grid(row=1, column=0, padx=20, pady=5, sticky="ew")
         self.profile_menu.set("Custom")
 
-        # File drop area using CTkFrame
         self.file_drop_frame = ctk.CTkFrame(
             self,
             height=150,
@@ -166,7 +165,6 @@ class ProcessPage(ctk.CTkScrollableFrame):
         self.file_drop_frame.grid(row=2, column=0, padx=20, pady=15, sticky="ew")
         self.file_drop_frame.grid_propagate(False)
 
-        # Nested label for displaying text
         self.file_info_label = ctk.CTkLabel(
             self.file_drop_frame,
             text="Drop PDFs here or click to browse",
@@ -177,7 +175,6 @@ class ProcessPage(ctk.CTkScrollableFrame):
         )
         self.file_info_label.place(relx=0.5, rely=0.5, anchor="center")
 
-        # Bind click and hover events to the frame
         self.file_drop_frame.bind("<Button-1>", self.browse_files)
         self.file_drop_frame.bind("<Enter>", lambda e: self.file_drop_frame.configure(fg_color="#3a3a3a"))
         self.file_drop_frame.bind("<Leave>", lambda e: self.file_drop_frame.configure(fg_color="#2f2f2f"))
@@ -231,32 +228,27 @@ class ProcessPage(ctk.CTkScrollableFrame):
         )
         self.status_label.grid(row=6, column=0, padx=20, pady=10, sticky="w")
 
-        # Start idle animation
         self.start_idle_animation()
 
     def start_idle_animation(self):
         if self.is_processing or not self.status_label:
             return
-        # Cancel any existing animation
         if self.animation_id:
             self.after_cancel(self.animation_id)
-        # Pulse between #E0E0E0 and #A0A0A0
         colors = ["#E0E0E0", "#A0A0A0"]
         self.status_label.configure(text_color=colors[self.idle_color_index])
         self.idle_color_index = (self.idle_color_index + 1) % 2
-        self.animation_id = self.after(1000, self.start_idle_animation)  # Update every 1 second
+        self.animation_id = self.after(1000, self.start_idle_animation)
 
     def start_processing_animation(self):
         if not self.status_label:
             return
-        # Cancel any existing animation
         if self.animation_id:
             self.after_cancel(self.animation_id)
-        # Rotate ellipsis (., .., ...)
         dots = "." * (self.processing_dots + 1)
         self.status_label.configure(text=f"Status: Processing{dots}", text_color="#E0E0E0")
         self.processing_dots = (self.processing_dots + 1) % 3
-        self.animation_id = self.after(500, self.start_processing_animation)  # Update every 0.5 seconds
+        self.animation_id = self.after(500, self.start_processing_animation)
 
     def stop_animation(self):
         if self.animation_id:
@@ -292,7 +284,7 @@ class ProcessPage(ctk.CTkScrollableFrame):
 
     def update_status_label(self, message: str, text_color="#E0E0E0"):
         if self.status_label:
-            self.stop_animation()  # Stop any ongoing animation
+            self.stop_animation()
             self.status_label.configure(text=f"Status: {message}", text_color=text_color)
             if message == "Idle":
                 self.is_processing = False
@@ -307,74 +299,10 @@ class ProcessPage(ctk.CTkScrollableFrame):
             return
         selected_profile = self.selected_profile.get()
         self.update_status_label(f"Processing {len(self.selected_files)} file(s) with profile: {selected_profile}", text_color="#E0E0E0")
-        import pdf_parser
-        import virtual_agent_scraper
-        import excel_writer
-        import tkinter.messagebox as mb
-        import os
-        # For demo, use the first file only
-        pdf_path = self.selected_files[0]
-        try:
-            pdf_rows = pdf_parser.extract_data_from_pdf(pdf_path)
-        except Exception as e:
-            self.update_status_label(f"PDF extraction error: {e}", text_color="#FF4C4C")
-            return
-        ids_to_scrape = []
-        excel_rows = []
-        for row in pdf_rows:
-            name = row["name"].lower()
-            if any(x in name for x in ["cc", "pty", "trust"]):
-                excel_rows.append({
-                    "id": row["identifier"],
-                    "name": row["name"],
-                    "cell1": "",
-                    "cell2": "",
-                    "cell3": "",
-                    "note": "Company/Trust - not scraped"
-                })
-            else:
-                ids_to_scrape.append(row["identifier"])
-                excel_rows.append({
-                    "id": row["identifier"],
-                    "name": row["name"],
-                    "cell1": "",
-                    "cell2": "",
-                    "cell3": "",
-                    "note": ""
-                })
-        # Get credentials from profile (for now, dummy values)
-        username = "demo_user"
-        password = "demo_pass"
-        # TODO: fetch from CredentialsPage/profile
-        scraped = {}
-        if ids_to_scrape:
-            try:
-                scraped = virtual_agent_scraper.scrape_phones_for_ids(ids_to_scrape, username, password)
-            except Exception as e:
-                self.update_status_label(f"Web scraping error: {e}", text_color="#FF4C4C")
-                return
-        # Merge scraped results into excel_rows
-        for row in excel_rows:
-            if row["id"] in scraped:
-                nums = scraped[row["id"]]
-                row["cell1"] = nums[0] if len(nums) > 0 else ""
-                row["cell2"] = nums[1] if len(nums) > 1 else ""
-                row["cell3"] = nums[2] if len(nums) > 2 else ""
-        # Write to Excel
-        output_path = os.path.splitext(pdf_path)[0] + "_results.xlsx"
-        # Convert excel_rows to {id: [cell1, cell2, cell3]} for excel_writer
-        excel_dict = {row["id"]: [row["cell1"], row["cell2"], row["cell3"]] for row in excel_rows}
-        try:
-            excel_writer.write_results_to_excel(excel_dict, output_path)
-        except Exception as e:
-            self.update_status_label(f"Excel error: {e}", text_color="#FF4C4C")
-            return
-        self.update_status_label(f"Processing complete! Saved: {os.path.basename(output_path)}", text_color="#00CC00")
-        if self.open_excel_var.get():
-            try:
-                os.startfile(output_path)
-            except Exception:
-                mb.showinfo("Open Excel", f"Saved to {output_path}, but could not open automatically.")
+        print(f"Processing files: {self.selected_files}")
+        print(f"Selected profile: {selected_profile}")
+        print(f"Open Excel after processing: {self.open_excel_var.get()}")
+        self.after(2000, self.on_processing_complete)
 
     def on_processing_complete(self):
         self.update_status_label("Processing complete!", text_color="#00CC00")
@@ -385,19 +313,22 @@ class CredentialsPage(ctk.CTkScrollableFrame):
         super().__init__(master, label_text="Manage Virtual Agent Credentials", label_font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"), fg_color="#1e1e1e")
         self.grid_columnconfigure(0, weight=1)
         self._process_page = process_page
+        self.agents = []  # List to store agent data: [name, username, password, is_permanent]
+        self.selected_agent_index = ctk.IntVar(value=-1)  # Track selected agent for editing
+        self.is_editing = False  # Track editing mode
 
+        # Agent Selection
         ctk.CTkLabel(
             self,
-            text="Select Profile:",
+            text="Select Agent:",
             font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
             text_color="#E0E0E0"
         ).grid(row=0, column=0, pady=(15, 5), padx=20, sticky="w")
 
-        self.profile_values = ["Custom", "Marco's VA", "Admin VA"]
-        self.profile_menu = ctk.CTkOptionMenu(
+        self.agent_menu = ctk.CTkOptionMenu(
             self,
-            values=self.profile_values,
-            command=self.on_profile_select,
+            values=["Create New Agent"] + [agent[0] for agent in self.agents],
+            command=self.on_agent_select,
             font=ctk.CTkFont(family="Segoe UI", size=12),
             dropdown_font=ctk.CTkFont(family="Segoe UI", size=12),
             corner_radius=12,
@@ -406,18 +337,20 @@ class CredentialsPage(ctk.CTkScrollableFrame):
             button_hover_color="#005EA6",
             text_color="#E0E0E0"
         )
-        self.profile_menu.grid(row=1, column=0, pady=5, padx=20, sticky="ew")
-        self.profile_menu.set("Custom")
+        self.agent_menu.grid(row=1, column=0, pady=5, padx=20, sticky="ew")
+        self.agent_menu.set("Create New Agent")
 
-        self.entry_profile_name = ctk.CTkEntry(
+        # Input Fields (corrected to remove text_color_disabled)
+        self.entry_agent_name = ctk.CTkEntry(
             self,
-            placeholder_text="Profile Name (e.g., Marco's VA)",
+            placeholder_text="Agent Name",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             fg_color="#2f2f2f",
             text_color="#E0E0E0",
             corner_radius=12
         )
-        self.entry_profile_name.grid(row=2, column=0, pady=5, padx=20, sticky="ew")
+        self.entry_agent_name.grid(row=2, column=0, pady=5, padx=20, sticky="ew")
+        self.entry_agent_name.configure(state="disabled", text_color="#808080")
 
         self.entry_username = ctk.CTkEntry(
             self,
@@ -428,6 +361,7 @@ class CredentialsPage(ctk.CTkScrollableFrame):
             corner_radius=12
         )
         self.entry_username.grid(row=3, column=0, pady=5, padx=20, sticky="ew")
+        self.entry_username.configure(state="disabled", text_color="#808080")
 
         self.entry_password = ctk.CTkEntry(
             self,
@@ -439,22 +373,40 @@ class CredentialsPage(ctk.CTkScrollableFrame):
             corner_radius=12
         )
         self.entry_password.grid(row=4, column=0, pady=5, padx=20, sticky="ew")
+        self.entry_password.configure(state="disabled", text_color="#808080")
 
-        self.remember_var = ctk.BooleanVar()
-        self.remember_checkbox = ctk.CTkCheckBox(
+        self.save_permanently_var = ctk.BooleanVar()
+        self.save_permanently_checkbox = ctk.CTkCheckBox(
             self,
-            text="Save credentials securely",
-            variable=self.remember_var,
+            text="Save Permanently",
+            variable=self.save_permanently_var,
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color="#E0E0E0",
-            hover_color="#005EA6"
+            hover_color="#005EA6",
+            state="disabled"
         )
-        self.remember_checkbox.grid(row=5, column=0, pady=10, padx=20, sticky="w")
+        self.save_permanently_checkbox.grid(row=5, column=0, pady=10, padx=20, sticky="w")
 
-        self.save_button = ctk.CTkButton(
+        self.edit_button = ctk.CTkButton(
             self,
-            text="Save Credentials",
-            command=self.save_credentials,
+            text="Edit Agent",
+            command=self.enable_edit_mode,
+            height=48,
+            font=ctk.CTkFont(family="Segoe UI", size=14),
+            corner_radius=12,
+            fg_color="#0078D4",
+            hover_color="#005EA6",
+            border_width=1,
+            border_color="#0078D4",
+            text_color="#E0E0E0",
+            state="disabled"
+        )
+        self.edit_button.grid(row=6, column=0, pady=15, padx=20, sticky="ew")
+
+        self.create_button = ctk.CTkButton(
+            self,
+            text="Create Agent",
+            command=self.create_agent,
             height=48,
             font=ctk.CTkFont(family="Segoe UI", size=14),
             corner_radius=12,
@@ -464,55 +416,134 @@ class CredentialsPage(ctk.CTkScrollableFrame):
             border_color="#0078D4",
             text_color="#E0E0E0"
         )
-        self.save_button.grid(row=6, column=0, pady=15, padx=20, sticky="ew")
+        self.create_button.grid(row=7, column=0, pady=15, padx=20, sticky="ew")
 
-    def on_profile_select(self, selected_profile: str):
-        if selected_profile == "Custom":
-            self.entry_profile_name.configure(state="normal")
-            self.entry_username.configure(state="normal")
-            self.entry_password.configure(state="normal")
-            self.entry_profile_name.delete(0, 'end')
+        self.save_changes_button = ctk.CTkButton(
+            self,
+            text="Save Changes",
+            command=self.save_changes,
+            height=48,
+            font=ctk.CTkFont(family="Segoe UI", size=14),
+            corner_radius=12,
+            fg_color="#0078D4",
+            hover_color="#005EA6",
+            border_width=1,
+            border_color="#0078D4",
+            text_color="#E0E0E0",
+            state="disabled"
+        )
+        self.save_changes_button.grid(row=8, column=0, pady=15, padx=20, sticky="ew")
+
+    def on_agent_select(self, selected_agent):
+        self.is_editing = False
+        if selected_agent == "Create New Agent":
+            self.selected_agent_index.set(-1)
+            self.entry_agent_name.delete(0, 'end')
             self.entry_username.delete(0, 'end')
             self.entry_password.delete(0, 'end')
+            self.save_permanently_var.set(False)
+            self.entry_agent_name.configure(state="normal", text_color="#E0E0E0")
+            self.entry_username.configure(state="normal", text_color="#E0E0E0")
+            self.entry_password.configure(state="normal", text_color="#E0E0E0")
+            self.save_permanently_checkbox.configure(state="normal")
+            self.edit_button.configure(state="disabled")
+            self.save_changes_button.configure(state="disabled")
         else:
-            self.entry_profile_name.configure(state="normal")
-            self.entry_username.configure(state="normal")
-            self.entry_password.configure(state="normal")
-            self.entry_profile_name.delete(0, 'end')
-            self.entry_profile_name.insert(0, selected_profile)
-            self.entry_profile_name.configure(state="disabled")
+            index = [agent[0] for agent in self.agents].index(selected_agent)
+            self.selected_agent_index.set(index)
+            agent = self.agents[index]
+            self.entry_agent_name.delete(0, 'end')
             self.entry_username.delete(0, 'end')
-            self.entry_username.insert(0, f"{selected_profile.split()[0].lower()}_user")
-            self.entry_username.configure(state="disabled")
             self.entry_password.delete(0, 'end')
-            self.entry_password.insert(0, "dummyPassword")
-            self.entry_password.configure(state="disabled")
+            self.entry_agent_name.insert(0, agent[0])
+            self.entry_username.insert(0, agent[1])
+            self.entry_password.insert(0, agent[2])
+            self.save_permanently_var.set(agent[3])
+            self.entry_agent_name.configure(state="disabled", text_color="#808080")
+            self.entry_username.configure(state="disabled", text_color="#808080")
+            self.entry_password.configure(state="disabled", text_color="#808080")
+            self.save_permanently_checkbox.configure(state="disabled")
+            self.edit_button.configure(state="normal")
+            self.save_changes_button.configure(state="disabled")
 
-    def save_credentials(self):
-        profile_name = self.entry_profile_name.get()
-        username = self.entry_username.get()
-        password = self.entry_password.get()
-        remember = self.remember_var.get()
+    def enable_edit_mode(self):
+        self.is_editing = True
+        self.entry_agent_name.configure(state="normal", text_color="#E0E0E0")
+        self.entry_username.configure(state="normal", text_color="#E0E0E0")
+        self.entry_password.configure(state="normal", text_color="#E0E0E0")
+        self.save_permanently_checkbox.configure(state="normal")
+        self.save_changes_button.configure(state="normal")
 
-        if not profile_name or not username:
-            print("Profile Name and Username are required.")
+    def create_agent(self):
+        agent_name = self.entry_agent_name.get().strip()
+        username = self.entry_username.get().strip()
+        password = self.entry_password.get().strip()
+        is_permanent = self.save_permanently_var.get()
+
+        if not agent_name or not username or not password:
+            print("Agent Name, Username, and Password are required.")
             if self._process_page:
-                self._process_page.update_status_label("Profile Name and Username are required.", text_color="#FF4C4C")
+                self._process_page.update_status_label("All fields are required.", text_color="#FF4C4C")
             return
 
-        print(f"Saving Credentials for Profile: {profile_name}")
-        print(f"  Username: {username}")
-        print(f"  Password: {'*' * len(password) if password else '(empty)'}")
-        print(f"  Save Securely: {remember}")
-        if profile_name not in self.profile_values and profile_name != "Custom":
-            self.profile_values.append(profile_name)
-            self.profile_menu.configure(values=self.profile_values)
-        if profile_name != "Custom":
-            self.profile_menu.set(profile_name)
-        else:
-            self.profile_menu.set("Custom")
+        if agent_name in [agent[0] for agent in self.agents]:
+            print("Agent name already exists.")
+            if self._process_page:
+                self._process_page.update_status_label("Agent name already exists.", text_color="#FF4C4C")
+            return
+
+        self.agents.append([agent_name, username, password, is_permanent])
+        self.agent_menu.configure(values=["Create New Agent"] + [agent[0] for agent in self.agents])
+        self.agent_menu.set(agent_name)
+        self.selected_agent_index.set(len(self.agents) - 1)
+        self.entry_agent_name.configure(state="disabled", text_color="#808080")
+        self.entry_username.configure(state="disabled", text_color="#808080")
+        self.entry_password.configure(state="disabled", text_color="#808080")
+        self.save_permanently_checkbox.configure(state="disabled")
+        self.edit_button.configure(state="normal")
+        self.save_changes_button.configure(state="disabled")
         if self._process_page:
-            self._process_page.update_status_label("Credentials saved successfully.", text_color="#00CC00")
+            self._process_page.update_status_label("Agent created successfully.", text_color="#00CC00")
+
+    def save_changes(self):
+        if not self.is_editing:
+            return
+        index = self.selected_agent_index.get()
+        if index >= 0:
+            agent_name = self.entry_agent_name.get().strip()
+            username = self.entry_username.get().strip()
+            password = self.entry_password.get().strip()
+            is_permanent = self.save_permanently_var.get()
+
+            if not agent_name or not username or not password:
+                print("Agent Name, Username, and Password are required.")
+                if self._process_page:
+                    self._process_page.update_status_label("All fields are required.", text_color="#FF4C4C")
+                return
+
+            for i, agent in enumerate(self.agents):
+                if i != index and agent[0] == agent_name:
+                    print("Agent name already exists.")
+                    if self._process_page:
+                        self._process_page.update_status_label("Agent name already exists.", text_color="#FF4C4C")
+                    return
+
+            self.agents[index] = [agent_name, username, password, is_permanent]
+            self.agent_menu.configure(values=["Create New Agent"] + [agent[0] for agent in self.agents])
+            self.agent_menu.set(agent_name)
+            self.entry_agent_name.configure(state="disabled", text_color="#808080")
+            self.entry_username.configure(state="disabled", text_color="#808080")
+            self.entry_password.configure(state="disabled", text_color="#808080")
+            self.save_permanently_checkbox.configure(state="disabled")
+            self.edit_button.configure(state="normal")
+            self.save_changes_button.configure(state="disabled")
+            self.is_editing = False
+            if self._process_page:
+                self._process_page.update_status_label("Agent updated successfully.", text_color="#00CC00")
+        else:
+            print("No agent selected for editing.")
+            if self._process_page:
+                self._process_page.update_status_label("No agent selected for editing.", text_color="#FF4C4C")
 
 
 class StatsPage(ctk.CTkScrollableFrame):
