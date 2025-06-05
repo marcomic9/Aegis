@@ -1,16 +1,15 @@
 import os
 import customtkinter as ctk
 import tkinter.filedialog as fd
-from tkinterdnd2 import TkinterDnD, DND_FILES # Ensure TkinterDnD is imported correctly
+from tkinterdnd2 import TkinterDnD, DND_FILES
 
-# Set default appearance and theme
-ctk.set_appearance_mode("System") # Options: "System", "Light", "Dark"
-ctk.set_default_color_theme("blue") # Options: "blue", "green", "dark-blue"
+# Set permanent dark theme
+ctk.set_appearance_mode("Dark")
+ctk.set_default_color_theme("dark-blue")
 
 class AegisApp(TkinterDnD.Tk):
     def __init__(self):
         super().__init__()
-        # --- TkinterDnD Initialization ---
         try:
             self.tk.call('package', 'require', 'tkdnd')
             print("Successfully loaded 'tkdnd' package.")
@@ -23,119 +22,79 @@ class AegisApp(TkinterDnD.Tk):
         self.minsize(1000, 650)
 
         # Main CTkFrame as the app container
-        self.app_frame = ctk.CTkFrame(self)
+        self.app_frame = ctk.CTkFrame(self, fg_color="#1e1e1e")
         self.app_frame.pack(fill="both", expand=True)
         self.app_frame.grid_columnconfigure(0, weight=0)
         self.app_frame.grid_columnconfigure(1, weight=1)
         self.app_frame.grid_rowconfigure(0, weight=1)
-        self.app_frame.grid_rowconfigure(1, weight=0)
 
-        # Initialize UI components in the CTkFrame
+        # Sidebar and main content
         self.sidebar = Sidebar(self.app_frame)
-        self.sidebar.grid(row=0, column=0, sticky="nswe", padx=10, pady=(10, 0))
-
-        self.settings_sidebar = SettingsSidebar(self.app_frame)
-        self.settings_sidebar.grid(row=1, column=0, sticky="nswe", padx=10, pady=(0, 10))
+        self.sidebar.grid(row=0, column=0, sticky="nswe", padx=10, pady=10)
 
         self.main_content = MainContent(self.app_frame)
-        self.main_content.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=10, pady=10)
+        self.main_content.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
 
-        # Enable drag-and-drop on the main app window (or specific widgets if preferred)
-        # The DND_FILES type means it will accept file drops.
+        # Enable drag-and-drop
         self.drop_target_register(DND_FILES)
         self.dnd_bind('<<Drop>>', self.handle_drop)
 
     def handle_drop(self, event):
-        # Use self.tk.splitlist to correctly parse the dropped file paths.
-        # event.data is a string containing a Tcl-formatted list of file paths.
         try:
             files = self.tk.splitlist(event.data)
             pdf_files = [f for f in files if f.lower().endswith('.pdf')]
             if pdf_files:
-                # Pass the actual list of PDF file paths
                 self.main_content.process_page.handle_dropped_files(pdf_files)
             else:
-                # Optionally provide feedback if non-PDFs are dropped
-                self.main_content.process_page.update_status_label("Only PDF files are accepted via drag & drop.")
-
+                self.main_content.process_page.update_status_label("Only PDF files are accepted.", text_color="#FF4C4C")
         except Exception as e:
             print(f"Error handling drop: {e}")
-            if hasattr(self.main_content, 'process_page') and self.main_content.process_page:
-                self.main_content.process_page.update_status_label("Error processing dropped files.")
+            self.main_content.process_page.update_status_label("Error processing dropped files.", text_color="#FF4C4C")
 
 
 class Sidebar(ctk.CTkFrame):
     def __init__(self, master):
-        super().__init__(master, width=200, corner_radius=10, fg_color="#2b2b2b") # Darker sidebar
-        self.grid_propagate(False) # Prevent resizing based on content
-        self.grid_rowconfigure(5, weight=1) # Push button to bottom if needed / Add empty space
+        super().__init__(master, width=250, corner_radius=12, fg_color="#2f2f2f")
+        self.grid_propagate(False)
+        self.grid_rowconfigure(5, weight=1)
 
         ctk.CTkLabel(
             self,
             text="Aegis Menu",
-            font=ctk.CTkFont(family="Helvetica", size=18, weight="bold")
-        ).grid(row=0, column=0, pady=(20, 10), padx=20, sticky="w")
+            font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
+            text_color="#E0E0E0"
+        ).grid(row=0, column=0, pady=(20, 15), padx=20, sticky="w")
 
         buttons = [
-            ("📁 Process Files", lambda: master.main_content.show_page("process")),
-            ("🔐 Virtual Agents", lambda: master.main_content.show_page("credentials")),
-            ("📊 Statistics", lambda: master.main_content.show_page("stats"))
+            ("📁 Process Files", lambda: master.master.main_content.show_page("process")),
+            ("🔐 Virtual Agents", lambda: master.master.main_content.show_page("credentials")),
+            ("📊 Statistics", lambda: master.master.main_content.show_page("stats"))
         ]
         for idx, (text, command) in enumerate(buttons, start=1):
             ctk.CTkButton(
                 self,
                 text=text,
                 command=command,
-                height=40,
-                font=ctk.CTkFont(size=14),
-                corner_radius=8,
-                fg_color="#3a3a3a",
-                hover_color="#4a4a4a"
-            ).grid(row=idx, column=0, pady=5, padx=20, sticky="ew")
+                height=48,
+                font=ctk.CTkFont(family="Segoe UI", size=14),
+                corner_radius=12,
+                fg_color="#0078D4",
+                hover_color="#005EA6",
+                border_width=1,
+                border_color="#0078D4",
+                text_color="#E0E0E0"
+            ).grid(row=idx, column=0, pady=8, padx=20, sticky="ew")
 
-class SettingsSidebar(ctk.CTkFrame):
-    def __init__(self, master):
-        super().__init__(master, width=200, corner_radius=10, fg_color="#2b2b2b")
-        self.grid_propagate(False)
-        self.grid_rowconfigure(3, weight=1) # Pushes content up
-
-        ctk.CTkLabel(
-            self,
-            text="Settings",
-            font=ctk.CTkFont(family="Helvetica", size=18, weight="bold")
-        ).grid(row=0, column=0, pady=(20, 10), padx=10, sticky="w")
-
-        ctk.CTkLabel(
-            self,
-            text="Theme",
-            font=ctk.CTkFont(size=14)
-        ).grid(row=1, column=0, pady=(10, 5), padx=10, sticky="w")
-
-        self.theme_menu = ctk.CTkOptionMenu(
-            self,
-            values=["System", "Light", "Dark"],
-            command=self.change_theme,
-            font=ctk.CTkFont(size=12),
-            dropdown_font=ctk.CTkFont(size=12),
-            corner_radius=8
-        )
-        self.theme_menu.grid(row=2, column=0, pady=5, padx=10, sticky="ew")
-        self.theme_menu.set(ctk.get_appearance_mode()) # Set current mode
-
-    def change_theme(self, new_mode: str):
-        ctk.set_appearance_mode(new_mode)
 
 class MainContent(ctk.CTkFrame):
     def __init__(self, master):
-        super().__init__(master, corner_radius=10, fg_color="transparent") # Transparent bg
+        super().__init__(master, corner_radius=12, fg_color="#1e1e1e")
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
         self.pages = {}
-
-        # Instantiate pages and store them
         self.process_page = ProcessPage(self)
-        self.credentials_page = CredentialsPage(self)
+        self.credentials_page = CredentialsPage(self, process_page=self.process_page)
         self.stats_page = StatsPage(self)
 
         self.pages = {
@@ -145,16 +104,16 @@ class MainContent(ctk.CTkFrame):
         }
 
         for page_name, page_widget in self.pages.items():
-            page_widget.grid(row=0, column=0, sticky="nsew") # Add all pages initially
-            if page_name != "process": # Then hide non-default pages
+            page_widget.grid(row=0, column=0, sticky="nsew")
+            if page_name != "process":
                 page_widget.grid_remove()
 
-        self.current_page = "process" # Keep track of the current page
+        self.current_page = "process"
 
     def show_page(self, page_name_to_show: str):
         if page_name_to_show in self.pages:
-            self.pages[self.current_page].grid_remove() # Hide current page
-            self.pages[page_name_to_show].grid() # Show new page
+            self.pages[self.current_page].grid_remove()
+            self.pages[page_name_to_show].grid()
             self.current_page = page_name_to_show
         else:
             print(f"Error: Page '{page_name_to_show}' not found.")
@@ -162,77 +121,149 @@ class MainContent(ctk.CTkFrame):
 
 class ProcessPage(ctk.CTkScrollableFrame):
     def __init__(self, master):
-        super().__init__(master, label_text="Process PDFs", label_font=ctk.CTkFont(size=16, weight="bold"))
+        super().__init__(master, label_text="Process PDFs", label_font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"), fg_color="#1e1e1e")
         self.grid_columnconfigure(0, weight=1)
-        self.selected_files = [] # To store paths of selected/dropped files
 
-        # --- Profile selection for processing ---
+        self.selected_files = []
+        self.animation_id = None  # Store the after ID for animations
+        self.is_processing = False  # Track processing state
+        self.idle_color_index = 0  # Track idle animation color state
+        self.processing_dots = 0  # Track number of dots for processing animation
+
         ctk.CTkLabel(
             self,
             text="Select Virtual Agent Profile:",
-            font=ctk.CTkFont(size=13, weight="bold")
-        ).grid(row=0, column=0, padx=20, pady=(10, 2), sticky="w")
+            font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
+            text_color="#E0E0E0"
+        ).grid(row=0, column=0, padx=20, pady=(15, 5), sticky="w")
+
         self.profile_values = ["Custom", "Marco's VA", "Admin VA"]
         self.selected_profile = ctk.StringVar(value="Custom")
         self.profile_menu = ctk.CTkOptionMenu(
             self,
             variable=self.selected_profile,
             values=self.profile_values,
-            font=ctk.CTkFont(size=12),
-            dropdown_font=ctk.CTkFont(size=12),
-            corner_radius=8
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            dropdown_font=ctk.CTkFont(family="Segoe UI", size=12),
+            corner_radius=12,
+            fg_color="#2f2f2f",
+            button_color="#0078D4",
+            button_hover_color="#005EA6",
+            text_color="#E0E0E0"
         )
-        self.profile_menu.grid(row=1, column=0, padx=20, pady=(0, 10), sticky="ew")
+        self.profile_menu.grid(row=1, column=0, padx=20, pady=5, sticky="ew")
+        self.profile_menu.set("Custom")
 
-        # File drop/info area
-        self.file_info_label = ctk.CTkLabel(
+        # File drop area using CTkFrame
+        self.file_drop_frame = ctk.CTkFrame(
             self,
-            text="Drop PDFs here or click to browse",
             height=150,
-            fg_color=("gray75", "gray25"), # Light/Dark mode colors
-            text_color=("gray10", "gray90"),
-            font=ctk.CTkFont(size=14),
-            corner_radius=10
+            fg_color="#2f2f2f",
+            corner_radius=12,
+            border_width=2,
+            border_color="#0078D4"
         )
-        self.file_info_label.grid(row=2, column=0, padx=20, pady=20, sticky="ew")
-        self.file_info_label.bind("<Button-1>", self.browse_files) # Make label clickable
+        self.file_drop_frame.grid(row=2, column=0, padx=20, pady=15, sticky="ew")
+        self.file_drop_frame.grid_propagate(False)
 
-        # Browse button
-        ctk.CTkButton(
+        # Nested label for displaying text
+        self.file_info_label = ctk.CTkLabel(
+            self.file_drop_frame,
+            text="Drop PDFs here or click to browse",
+            font=ctk.CTkFont(family="Segoe UI", size=14),
+            text_color="#E0E0E0",
+            fg_color="transparent",
+            wraplength=600
+        )
+        self.file_info_label.place(relx=0.5, rely=0.5, anchor="center")
+
+        # Bind click and hover events to the frame
+        self.file_drop_frame.bind("<Button-1>", self.browse_files)
+        self.file_drop_frame.bind("<Enter>", lambda e: self.file_drop_frame.configure(fg_color="#3a3a3a"))
+        self.file_drop_frame.bind("<Leave>", lambda e: self.file_drop_frame.configure(fg_color="#2f2f2f"))
+
+        self.browse_button = ctk.CTkButton(
             self,
             text="📂 Browse Files",
             command=self.browse_files,
-            height=40,
-            font=ctk.CTkFont(size=14),
-            corner_radius=8
-        ).grid(row=3, column=0, pady=10, padx=20, sticky="ew")
+            height=48,
+            font=ctk.CTkFont(family="Segoe UI", size=14),
+            corner_radius=12,
+            fg_color="#0078D4",
+            hover_color="#005EA6",
+            border_width=1,
+            border_color="#0078D4",
+            text_color="#E0E0E0"
+        )
+        self.browse_button.grid(row=3, column=0, pady=10, padx=20, sticky="ew")
 
-        # Checkbox for opening Excel
         self.open_excel_var = ctk.BooleanVar()
-        ctk.CTkCheckBox(
+        self.open_excel_checkbox = ctk.CTkCheckBox(
             self,
             text="Open Excel after processing",
             variable=self.open_excel_var,
-            font=ctk.CTkFont(size=12)
-        ).grid(row=4, column=0, pady=10, padx=20, sticky="w")
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color="#E0E0E0",
+            hover_color="#005EA6"
+        )
+        self.open_excel_checkbox.grid(row=4, column=0, pady=10, padx=20, sticky="w")
 
-        # Start button
-        ctk.CTkButton(
+        self.start_button = ctk.CTkButton(
             self,
             text="🚀 Start Processing",
             command=self.start_processing,
-            height=40,
-            font=ctk.CTkFont(size=14),
-            corner_radius=8
-        ).grid(row=5, column=0, pady=20, padx=20, sticky="ew")
+            height=48,
+            font=ctk.CTkFont(family="Segoe UI", size=14),
+            corner_radius=12,
+            fg_color="#0078D4",
+            hover_color="#005EA6",
+            border_width=1,
+            border_color="#0078D4",
+            text_color="#E0E0E0"
+        )
+        self.start_button.grid(row=5, column=0, pady=15, padx=20, sticky="ew")
 
-        # Status label
         self.status_label = ctk.CTkLabel(
             self,
             text="Status: Idle",
-            font=ctk.CTkFont(size=12)
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+            text_color="#E0E0E0"
         )
         self.status_label.grid(row=6, column=0, padx=20, pady=10, sticky="w")
+
+        # Start idle animation
+        self.start_idle_animation()
+
+    def start_idle_animation(self):
+        if self.is_processing or not self.status_label:
+            return
+        # Cancel any existing animation
+        if self.animation_id:
+            self.after_cancel(self.animation_id)
+        # Pulse between #E0E0E0 and #A0A0A0
+        colors = ["#E0E0E0", "#A0A0A0"]
+        self.status_label.configure(text_color=colors[self.idle_color_index])
+        self.idle_color_index = (self.idle_color_index + 1) % 2
+        self.animation_id = self.after(1000, self.start_idle_animation)  # Update every 1 second
+
+    def start_processing_animation(self):
+        if not self.status_label:
+            return
+        # Cancel any existing animation
+        if self.animation_id:
+            self.after_cancel(self.animation_id)
+        # Rotate ellipsis (., .., ...)
+        dots = "." * (self.processing_dots + 1)
+        self.status_label.configure(text=f"Status: Processing{dots}", text_color="#E0E0E0")
+        self.processing_dots = (self.processing_dots + 1) % 3
+        self.animation_id = self.after(500, self.start_processing_animation)  # Update every 0.5 seconds
+
+    def stop_animation(self):
+        if self.animation_id:
+            self.after_cancel(self.animation_id)
+            self.animation_id = None
+        self.idle_color_index = 0
+        self.processing_dots = 0
 
     def browse_files(self, event=None):
         file_paths = fd.askopenfilenames(
@@ -240,19 +271,18 @@ class ProcessPage(ctk.CTkScrollableFrame):
             filetypes=[("PDF Files", "*.pdf"), ("All files", "*.*")]
         )
         if file_paths:
-            self.selected_files = list(file_paths) # Store as a list
+            self.selected_files = list(file_paths)
             self.update_file_display_label()
-            self.update_status_label(f"{len(self.selected_files)} file(s) selected. Ready to process!")
+            self.update_status_label(f"{len(self.selected_files)} file(s) selected.", text_color="#E0E0E0")
 
     def handle_dropped_files(self, file_paths: list):
         self.selected_files = file_paths
         self.update_file_display_label()
-        self.update_status_label(f"{len(self.selected_files)} file(s) dropped. Ready to process!")
+        self.update_status_label(f"{len(self.selected_files)} file(s) dropped.", text_color="#E0E0E0")
 
     def update_file_display_label(self):
         if self.selected_files:
             if len(self.selected_files) == 1:
-                # Show filename if only one file, or just the count
                 filename = os.path.basename(self.selected_files[0])
                 self.file_info_label.configure(text=f"Selected: {filename}")
             else:
@@ -260,64 +290,142 @@ class ProcessPage(ctk.CTkScrollableFrame):
         else:
             self.file_info_label.configure(text="Drop PDFs here or click to browse")
 
-    def update_status_label(self, message: str):
-        self.status_label.configure(text=f"Status: {message}")
+    def update_status_label(self, message: str, text_color="#E0E0E0"):
+        if self.status_label:
+            self.stop_animation()  # Stop any ongoing animation
+            self.status_label.configure(text=f"Status: {message}", text_color=text_color)
+            if message == "Idle":
+                self.is_processing = False
+                self.start_idle_animation()
+            elif "Processing" in message:
+                self.is_processing = True
+                self.start_processing_animation()
 
     def start_processing(self):
         if not self.selected_files:
-            self.update_status_label("No files selected to process!")
+            self.update_status_label("No files selected to process!", text_color="#FF4C4C")
             return
         selected_profile = self.selected_profile.get()
-        self.update_status_label(f"Processing {len(self.selected_files)} file(s) with profile: {selected_profile}...")
-        # --- Placeholder for actual processing logic ---
-        print(f"Processing files: {self.selected_files}")
-        print(f"Selected profile: {selected_profile}")
-        print(f"Open Excel after processing: {self.open_excel_var.get()}")
-        # Simulate processing
-        self.after(2000, self.on_processing_complete)
+        self.update_status_label(f"Processing {len(self.selected_files)} file(s) with profile: {selected_profile}", text_color="#E0E0E0")
+        import pdf_parser
+        import virtual_agent_scraper
+        import excel_writer
+        import tkinter.messagebox as mb
+        import os
+        # For demo, use the first file only
+        pdf_path = self.selected_files[0]
+        try:
+            pdf_rows = pdf_parser.extract_data_from_pdf(pdf_path)
+        except Exception as e:
+            self.update_status_label(f"PDF extraction error: {e}", text_color="#FF4C4C")
+            return
+        ids_to_scrape = []
+        excel_rows = []
+        for row in pdf_rows:
+            name = row["name"].lower()
+            if any(x in name for x in ["cc", "pty", "trust"]):
+                excel_rows.append({
+                    "id": row["identifier"],
+                    "name": row["name"],
+                    "cell1": "",
+                    "cell2": "",
+                    "cell3": "",
+                    "note": "Company/Trust - not scraped"
+                })
+            else:
+                ids_to_scrape.append(row["identifier"])
+                excel_rows.append({
+                    "id": row["identifier"],
+                    "name": row["name"],
+                    "cell1": "",
+                    "cell2": "",
+                    "cell3": "",
+                    "note": ""
+                })
+        # Get credentials from profile (for now, dummy values)
+        username = "demo_user"
+        password = "demo_pass"
+        # TODO: fetch from CredentialsPage/profile
+        scraped = {}
+        if ids_to_scrape:
+            try:
+                scraped = virtual_agent_scraper.scrape_phones_for_ids(ids_to_scrape, username, password)
+            except Exception as e:
+                self.update_status_label(f"Web scraping error: {e}", text_color="#FF4C4C")
+                return
+        # Merge scraped results into excel_rows
+        for row in excel_rows:
+            if row["id"] in scraped:
+                nums = scraped[row["id"]]
+                row["cell1"] = nums[0] if len(nums) > 0 else ""
+                row["cell2"] = nums[1] if len(nums) > 1 else ""
+                row["cell3"] = nums[2] if len(nums) > 2 else ""
+        # Write to Excel
+        output_path = os.path.splitext(pdf_path)[0] + "_results.xlsx"
+        # Convert excel_rows to {id: [cell1, cell2, cell3]} for excel_writer
+        excel_dict = {row["id"]: [row["cell1"], row["cell2"], row["cell3"]] for row in excel_rows}
+        try:
+            excel_writer.write_results_to_excel(excel_dict, output_path)
+        except Exception as e:
+            self.update_status_label(f"Excel error: {e}", text_color="#FF4C4C")
+            return
+        self.update_status_label(f"Processing complete! Saved: {os.path.basename(output_path)}", text_color="#00CC00")
+        if self.open_excel_var.get():
+            try:
+                os.startfile(output_path)
+            except Exception:
+                mb.showinfo("Open Excel", f"Saved to {output_path}, but could not open automatically.")
 
     def on_processing_complete(self):
-        self.update_status_label("✅ Processing complete!")
-        # self.selected_files = [] # Optionally clear selection
-        # self.update_file_display_label() # Update display if cleared
+        self.update_status_label("Processing complete!", text_color="#00CC00")
 
 
 class CredentialsPage(ctk.CTkScrollableFrame):
-    def __init__(self, master):
-        super().__init__(master, label_text="Manage Virtual Agent Credentials", label_font=ctk.CTkFont(size=16, weight="bold"))
+    def __init__(self, master, process_page=None):
+        super().__init__(master, label_text="Manage Virtual Agent Credentials", label_font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"), fg_color="#1e1e1e")
         self.grid_columnconfigure(0, weight=1)
+        self._process_page = process_page
 
         ctk.CTkLabel(
             self,
             text="Select Profile:",
-            font=ctk.CTkFont(size=14, weight="bold")
-        ).grid(row=0, column=0, pady=(10, 5), padx=20, sticky="w")
+            font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
+            text_color="#E0E0E0"
+        ).grid(row=0, column=0, pady=(15, 5), padx=20, sticky="w")
 
-        # Profile values: 'Custom' for manual entry, others for saved profiles
         self.profile_values = ["Custom", "Marco's VA", "Admin VA"]
         self.profile_menu = ctk.CTkOptionMenu(
             self,
             values=self.profile_values,
             command=self.on_profile_select,
-            font=ctk.CTkFont(size=12),
-            dropdown_font=ctk.CTkFont(size=12),
-            corner_radius=8
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            dropdown_font=ctk.CTkFont(family="Segoe UI", size=12),
+            corner_radius=12,
+            fg_color="#2f2f2f",
+            button_color="#0078D4",
+            button_hover_color="#005EA6",
+            text_color="#E0E0E0"
         )
         self.profile_menu.grid(row=1, column=0, pady=5, padx=20, sticky="ew")
         self.profile_menu.set("Custom")
 
-        # Profile inputs - store them as instance attributes to access their values
         self.entry_profile_name = ctk.CTkEntry(
             self,
             placeholder_text="Profile Name (e.g., Marco's VA)",
-            font=ctk.CTkFont(size=12)
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            fg_color="#2f2f2f",
+            text_color="#E0E0E0",
+            corner_radius=12
         )
         self.entry_profile_name.grid(row=2, column=0, pady=5, padx=20, sticky="ew")
 
         self.entry_username = ctk.CTkEntry(
             self,
             placeholder_text="Username",
-            font=ctk.CTkFont(size=12)
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            fg_color="#2f2f2f",
+            text_color="#E0E0E0",
+            corner_radius=12
         )
         self.entry_username.grid(row=3, column=0, pady=5, padx=20, sticky="ew")
 
@@ -325,27 +433,38 @@ class CredentialsPage(ctk.CTkScrollableFrame):
             self,
             placeholder_text="Password",
             show="*",
-            font=ctk.CTkFont(size=12)
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            fg_color="#2f2f2f",
+            text_color="#E0E0E0",
+            corner_radius=12
         )
         self.entry_password.grid(row=4, column=0, pady=5, padx=20, sticky="ew")
 
-        # Save credentials checkbox
         self.remember_var = ctk.BooleanVar()
-        ctk.CTkCheckBox(
+        self.remember_checkbox = ctk.CTkCheckBox(
             self,
-            text="Save credentials securely (placeholder)",
+            text="Save credentials securely",
             variable=self.remember_var,
-            font=ctk.CTkFont(size=12)
-        ).grid(row=5, column=0, pady=10, padx=20, sticky="w")
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color="#E0E0E0",
+            hover_color="#005EA6"
+        )
+        self.remember_checkbox.grid(row=5, column=0, pady=10, padx=20, sticky="w")
 
-        ctk.CTkButton(
+        self.save_button = ctk.CTkButton(
             self,
-            text="💾 Save Credentials",
+            text="Save Credentials",
             command=self.save_credentials,
-            height=40,
-            font=ctk.CTkFont(size=14),
-            corner_radius=8
-        ).grid(row=6, column=0, pady=10, padx=20, sticky="ew")
+            height=48,
+            font=ctk.CTkFont(family="Segoe UI", size=14),
+            corner_radius=12,
+            fg_color="#0078D4",
+            hover_color="#005EA6",
+            border_width=1,
+            border_color="#0078D4",
+            text_color="#E0E0E0"
+        )
+        self.save_button.grid(row=6, column=0, pady=15, padx=20, sticky="ew")
 
     def on_profile_select(self, selected_profile: str):
         if selected_profile == "Custom":
@@ -356,7 +475,6 @@ class CredentialsPage(ctk.CTkScrollableFrame):
             self.entry_username.delete(0, 'end')
             self.entry_password.delete(0, 'end')
         else:
-            # Example: fill with dummy data, disable editing
             self.entry_profile_name.configure(state="normal")
             self.entry_username.configure(state="normal")
             self.entry_password.configure(state="normal")
@@ -373,18 +491,19 @@ class CredentialsPage(ctk.CTkScrollableFrame):
     def save_credentials(self):
         profile_name = self.entry_profile_name.get()
         username = self.entry_username.get()
-        password = self.entry_password.get() # Remember to handle securely!
+        password = self.entry_password.get()
         remember = self.remember_var.get()
 
-        if not profile_name or not username: # Basic validation
+        if not profile_name or not username:
             print("Profile Name and Username are required.")
+            if self._process_page:
+                self._process_page.update_status_label("Profile Name and Username are required.", text_color="#FF4C4C")
             return
 
         print(f"Saving Credentials for Profile: {profile_name}")
         print(f"  Username: {username}")
         print(f"  Password: {'*' * len(password) if password else '(empty)'}")
         print(f"  Save Securely: {remember}")
-        # Add to profile_values if new and not 'Custom'
         if profile_name not in self.profile_values and profile_name != "Custom":
             self.profile_values.append(profile_name)
             self.profile_menu.configure(values=self.profile_values)
@@ -392,20 +511,22 @@ class CredentialsPage(ctk.CTkScrollableFrame):
             self.profile_menu.set(profile_name)
         else:
             self.profile_menu.set("Custom")
+        if self._process_page:
+            self._process_page.update_status_label("Credentials saved successfully.", text_color="#00CC00")
 
 
 class StatsPage(ctk.CTkScrollableFrame):
     def __init__(self, master):
-        super().__init__(master, label_text="📊 Aegis Statistics", label_font=ctk.CTkFont(size=16, weight="bold"))
+        super().__init__(master, label_text="Aegis Statistics", label_font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"), fg_color="#1e1e1e")
         self.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             self,
-            text="🎉 Performance Metrics (Sample Data)",
-            font=ctk.CTkFont(family="Helvetica", size=16, weight="bold")
-        ).grid(row=0, column=0, pady=10, padx=20, sticky="w")
+            text="Performance Metrics",
+            font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
+            text_color="#E0E0E0"
+        ).grid(row=0, column=0, pady=(15, 10), padx=20, sticky="w")
 
-        # Sample statistics data
         self.stats_data = {
             "PDFs Processed": 128,
             "IDs Retrieved": 114,
@@ -419,9 +540,11 @@ class StatsPage(ctk.CTkScrollableFrame):
             ctk.CTkLabel(
                 self,
                 text=f"{key}: {value}",
-                anchor="w", # Aligns text to the west (left)
-                font=ctk.CTkFont(size=14)
+                anchor="w",
+                font=ctk.CTkFont(family="Segoe UI", size=14),
+                text_color="#E0E0E0"
             ).grid(row=idx, column=0, padx=20, pady=5, sticky="ew")
+
 
 if __name__ == "__main__":
     app = AegisApp()
