@@ -5,8 +5,7 @@ from playwright.sync_api import Page, TimeoutError
 
 def extract_phone_numbers(page: Page) -> list:
     """
-    REWRITTEN: A simpler function based on the Playwright recording.
-    It finds all links in the main table and checks if they are valid phone numbers.
+    Extracts up to three 10-digit phone numbers from the contact table.
     """
     phone_numbers = []
     try:
@@ -26,9 +25,6 @@ def extract_phone_numbers(page: Page) -> list:
             number_text = link.inner_text().strip()
             cleaned_number = re.sub(r'[\s\(\)-]', '', number_text)
             
-            # --- MODIFIED REGEX HERE ---
-            # This regex now looks for ANY 10-digit number starting with 0,
-            # which will include both cell numbers and landlines.
             if re.match(r"^0[0-9]{9}$", cleaned_number):
                 phone_numbers.append(cleaned_number)
                 print(f"    -> Valid number found: {cleaned_number}")
@@ -40,6 +36,7 @@ def extract_phone_numbers(page: Page) -> list:
         print(f"An error occurred during phone number extraction: {e}")
         
     return phone_numbers
+
 
 def test_virtual_agent(page: Page, username: str, password: str) -> dict:
     """
@@ -60,10 +57,9 @@ def test_virtual_agent(page: Page, username: str, password: str) -> dict:
         print("Clicking Sign In...")
         page.get_by_role("button", name="Sign In").click()
 
-        if page.locator("text='Invalid username or password'").is_visible(timeout=5000):
-            print("Error: Invalid username or password.")
-            result["message"] = "Invalid credentials"
-            return result
+        # After login, wait for the next page's main element to ensure it has loaded.
+        print("Waiting for dashboard to load after login...")
+        page.locator("#tab_person_search").wait_for(timeout=30000)
 
         print("Login successful. Following original 'View Sample' workflow...")
         page.locator("#tab_person_search").get_by_text("View Sample").click()
@@ -78,16 +74,6 @@ def test_virtual_agent(page: Page, username: str, password: str) -> dict:
         
         print("Link is visible. Clicking now.")
         id_link.click()
-
-        # --- CONSENT FORM DISABLED FOR TESTING ---
-        # try:
-        #     print("Looking for the consent form...")
-        #     proceed_button = page.get_by_text('PROCEED', { 'exact': True })
-        #     proceed_button.wait_for(timeout=10000)
-        #     print("Consent form found. Clicking PROCEED.")
-        #     proceed_button.click()
-        # except TimeoutError:
-        #     print("Consent form did not appear, continuing...")
 
         print("Navigating to Contact section...")
         page.get_by_role("link", name=" Contact").click()
@@ -126,8 +112,19 @@ if __name__ == "__main__":
         exit(1)
     
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        page = browser.new_page()
+        browser = p.chromium.launch(headless=True)
+
+        # --- ANTI-BOT DETECTION SETTINGS ---
+        # Create a browser context with human-like properties
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+            viewport={'width': 1920, 'height': 1080},
+            locale='en-US',
+            java_script_enabled=True
+        )
+        
+        # Create the page from our hardened context
+        page = context.new_page()
         
         page.set_default_navigation_timeout(60000)
         
