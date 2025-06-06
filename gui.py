@@ -550,31 +550,63 @@ class StatsPage(ctk.CTkScrollableFrame):
     def __init__(self, master):
         super().__init__(master, label_text="Aegis Statistics", label_font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"), fg_color="#1e1e1e")
         self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
 
+        # Processing Stats Header
+        ctk.CTkLabel(
+            self,
+            text="Processing Stats",
+            font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
+            text_color="#E0E0E0"
+        ).grid(row=0, column=0, columnspan=2, pady=(15, 5), padx=20, sticky="w")
+
+        # Processing Stats Data
+        processing_stats = {
+            "PDFs Processed": 128,
+            "IDs Retrieved": 114,
+            "Successful Runs": 56,
+            "Failed Runs": 2
+        }
+
+        for idx, (key, value) in enumerate(processing_stats.items()):
+            col = idx % 2
+            row = (idx // 2) + 1
+            frame = ctk.CTkFrame(self, fg_color="#2f2f2f", corner_radius=8)
+            frame.grid(row=row, column=col, padx=10, pady=5, sticky="ew")
+            ctk.CTkLabel(
+                frame,
+                text=f"{key}: {value}",
+                font=ctk.CTkFont(family="Segoe UI", size=14),
+                text_color="#E0E0E0"
+            ).pack(side="left", padx=10)
+
+        # Performance Metrics Header
+        performance_row = (len(processing_stats) // 2) + 2
         ctk.CTkLabel(
             self,
             text="Performance Metrics",
-            font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
             text_color="#E0E0E0"
-        ).grid(row=0, column=0, pady=(15, 10), padx=20, sticky="w")
+        ).grid(row=performance_row, column=0, columnspan=2, pady=(15, 5), padx=20, sticky="w")
 
-        self.stats_data = {
-            "PDFs Processed": 128,
-            "IDs Retrieved": 114,
+        # Performance Metrics Data
+        performance_metrics = {
             "Average Time per PDF": "3.2s",
             "Estimated Time Saved": "6.1 minutes",
-            "Successful Runs": 56,
-            "Failed Runs": 2,
             "Streak (days processing)": 3
         }
-        for idx, (key, value) in enumerate(self.stats_data.items(), start=1):
+
+        for idx, (key, value) in enumerate(performance_metrics.items()):
+            col = idx % 2
+            row = performance_row + 1 + (idx // 2)
+            frame = ctk.CTkFrame(self, fg_color="#2f2f2f", corner_radius=8)
+            frame.grid(row=row, column=col, padx=10, pady=5, sticky="ew")
             ctk.CTkLabel(
-                self,
+                frame,
                 text=f"{key}: {value}",
-                anchor="w",
                 font=ctk.CTkFont(family="Segoe UI", size=14),
                 text_color="#E0E0E0"
-            ).grid(row=idx, column=0, padx=20, pady=5, sticky="ew")
+            ).pack(side="left", padx=10)
 
 
 if __name__ == "__main__":
