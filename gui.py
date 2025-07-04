@@ -3,6 +3,58 @@ import customtkinter as ctk
 import tkinter.filedialog as fd
 from tkinterdnd2 import TkinterDnD, DND_FILES
 
+# --- SUNSET COLOR PALETTE & STYLE VARIABLES ---
+# These colors are inspired by a sunset: warm oranges, pinks, purples, and gradients.
+SUNSET_GRADIENT = ["#ff9966", "#ff5e62", "#ec6ead", "#6a82fb"]  # orange, pink, purple, blue
+BG_DARK = "#231942"  # deep purple background
+BG_LIGHT = "#f8f7ff"  # soft white for contrast
+SIDEBAR_BG = "#3d2956"  # muted purple for sidebar
+SIDEBAR_BTN_BG = "#ff7e5f"  # vibrant orange-pink for buttons
+SIDEBAR_BTN_HOVER = "#feb47b"  # lighter orange for hover
+SIDEBAR_BTN_TEXT = "#fff6f6"  # off-white text
+CARD_BG = "#432371"  # card/frame background
+SHADOW = "#1a1333"  # subtle shadow color
+ACCENT = "#f953c6"  # pink accent
+SUCCESS = "#00CC00"
+ERROR = "#FF4C4C"
+
+# --- GradientLabel: Large app name with gradient and shadow ---
+class GradientLabel(ctk.CTkCanvas):
+    def __init__(self, master, text, font, gradient_colors, shadow_color, **kwargs):
+        # Remove bg="transparent" to avoid Tkinter color error
+        super().__init__(master, highlightthickness=0, **kwargs)
+        self.text = text
+        self.font = font
+        self.gradient_colors = gradient_colors
+        self.shadow_color = shadow_color
+        self.bind("<Configure>", self._draw_gradient_text)
+
+    def _draw_gradient_text(self, event=None):
+        self.delete("all")
+        width = self.winfo_width()
+        height = self.winfo_height()
+        if width < 10 or height < 10:
+            return
+        # Draw shadow
+        self.create_text(
+            width // 2 + 2, height // 2 + 2,
+            text=self.text,
+            font=self.font,
+            fill=self.shadow_color,
+            anchor="center"
+        )
+        # Draw gradient text (simulate by overlaying text in gradient colors)
+        n = len(self.gradient_colors)
+        for i, color in enumerate(self.gradient_colors):
+            offset = int((i - n // 2) * 1.5)
+            self.create_text(
+                width // 2 + offset, height // 2 + offset,
+                text=self.text,
+                font=self.font,
+                fill=color,
+                anchor="center"
+            )
+
 # Set permanent dark theme
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("dark-blue")
@@ -20,20 +72,33 @@ class AegisApp(TkinterDnD.Tk):
         self.title("Aegis - PDF Automation Assistant")
         self.geometry("1200x750")
         self.minsize(1000, 650)
+        self.configure(bg=BG_DARK)
 
         # Main CTkFrame as the app container
-        self.app_frame = ctk.CTkFrame(self, fg_color="#1e1e1e")
+        self.app_frame = ctk.CTkFrame(self, fg_color=BG_DARK, corner_radius=18)
         self.app_frame.pack(fill="both", expand=True)
         self.app_frame.grid_columnconfigure(0, weight=0)
         self.app_frame.grid_columnconfigure(1, weight=1)
-        self.app_frame.grid_rowconfigure(0, weight=1)
+        self.app_frame.grid_rowconfigure(1, weight=1)
+
+        # --- App Name Gradient Label at Top Center ---
+        self.header = GradientLabel(
+            self.app_frame,
+            text="Aegis",
+            font=("Segoe UI", 44, "bold"),
+            gradient_colors=SUNSET_GRADIENT,
+            shadow_color=SHADOW,
+            width=600,
+            height=80
+        )
+        self.header.grid(row=0, column=0, columnspan=2, pady=(24, 8), sticky="n")
 
         # Sidebar and main content
         self.sidebar = Sidebar(self.app_frame)
-        self.sidebar.grid(row=0, column=0, sticky="nswe", padx=10, pady=10)
+        self.sidebar.grid(row=1, column=0, sticky="nswe", padx=(24, 12), pady=(0, 24))
 
         self.main_content = MainContent(self.app_frame)
-        self.main_content.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
+        self.main_content.grid(row=1, column=1, sticky="nsew", padx=(12, 24), pady=(0, 24))
 
         # Enable drag-and-drop
         self.drop_target_register(DND_FILES)
@@ -54,16 +119,16 @@ class AegisApp(TkinterDnD.Tk):
 
 class Sidebar(ctk.CTkFrame):
     def __init__(self, master):
-        super().__init__(master, width=250, corner_radius=12, fg_color="#2f2f2f")
+        super().__init__(master, width=270, corner_radius=18, fg_color=SIDEBAR_BG)
         self.grid_propagate(False)
         self.grid_rowconfigure(5, weight=1)
 
         ctk.CTkLabel(
             self,
             text="Aegis Menu",
-            font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
-            text_color="#E0E0E0"
-        ).grid(row=0, column=0, pady=(20, 15), padx=20, sticky="w")
+            font=ctk.CTkFont(family="Segoe UI", size=22, weight="bold"),
+            text_color=SIDEBAR_BTN_TEXT
+        ).grid(row=0, column=0, pady=(28, 18), padx=24, sticky="w")
 
         buttons = [
             ("📁 Process Files", lambda: master.master.main_content.show_page("process")),
@@ -75,20 +140,20 @@ class Sidebar(ctk.CTkFrame):
                 self,
                 text=text,
                 command=command,
-                height=48,
-                font=ctk.CTkFont(family="Segoe UI", size=14),
-                corner_radius=12,
-                fg_color="#0078D4",
-                hover_color="#005EA6",
-                border_width=1,
-                border_color="#0078D4",
-                text_color="#E0E0E0"
-            ).grid(row=idx, column=0, pady=8, padx=20, sticky="ew")
+                height=56,
+                font=ctk.CTkFont(family="Segoe UI", size=17, weight="bold"),
+                corner_radius=14,
+                fg_color=SIDEBAR_BTN_BG,
+                hover_color=SIDEBAR_BTN_HOVER,
+                border_width=0,
+                text_color=SIDEBAR_BTN_TEXT,
+                anchor="w"
+            ).grid(row=idx, column=0, pady=10, padx=18, sticky="ew")
 
 
 class MainContent(ctk.CTkFrame):
     def __init__(self, master):
-        super().__init__(master, corner_radius=12, fg_color="#1e1e1e")
+        super().__init__(master, corner_radius=18, fg_color=BG_LIGHT)
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
@@ -121,7 +186,14 @@ class MainContent(ctk.CTkFrame):
 
 class ProcessPage(ctk.CTkScrollableFrame):
     def __init__(self, master):
-        super().__init__(master, label_text="Process PDFs", label_font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"), fg_color="#1e1e1e")
+        super().__init__(
+            master,
+            label_text="Process PDFs",
+            label_font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
+            fg_color=BG_LIGHT,
+            corner_radius=16,
+            border_width=0
+        )
         self.grid_columnconfigure(0, weight=1)
 
         self.selected_files = []
@@ -157,10 +229,10 @@ class ProcessPage(ctk.CTkScrollableFrame):
         self.file_drop_frame = ctk.CTkFrame(
             self,
             height=150,
-            fg_color="#2f2f2f",
-            corner_radius=12,
+            fg_color=CARD_BG,
+            corner_radius=16,
             border_width=2,
-            border_color="#0078D4"
+            border_color=ACCENT
         )
         self.file_drop_frame.grid(row=2, column=0, padx=20, pady=15, sticky="ew")
         self.file_drop_frame.grid_propagate(False)
@@ -184,13 +256,12 @@ class ProcessPage(ctk.CTkScrollableFrame):
             text="📂 Browse Files",
             command=self.browse_files,
             height=48,
-            font=ctk.CTkFont(family="Segoe UI", size=14),
-            corner_radius=12,
-            fg_color="#0078D4",
-            hover_color="#005EA6",
-            border_width=1,
-            border_color="#0078D4",
-            text_color="#E0E0E0"
+            font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"),
+            corner_radius=14,
+            fg_color=SIDEBAR_BTN_BG,
+            hover_color=SIDEBAR_BTN_HOVER,
+            border_width=0,
+            text_color=SIDEBAR_BTN_TEXT
         )
         self.browse_button.grid(row=3, column=0, pady=10, padx=20, sticky="ew")
 
@@ -210,13 +281,12 @@ class ProcessPage(ctk.CTkScrollableFrame):
             text="🚀 Start Processing",
             command=self.start_processing,
             height=48,
-            font=ctk.CTkFont(family="Segoe UI", size=14),
-            corner_radius=12,
-            fg_color="#0078D4",
-            hover_color="#005EA6",
-            border_width=1,
-            border_color="#0078D4",
-            text_color="#E0E0E0"
+            font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"),
+            corner_radius=14,
+            fg_color=ACCENT,
+            hover_color=SIDEBAR_BTN_HOVER,
+            border_width=0,
+            text_color=SIDEBAR_BTN_TEXT
         )
         self.start_button.grid(row=5, column=0, pady=15, padx=20, sticky="ew")
 
@@ -224,7 +294,7 @@ class ProcessPage(ctk.CTkScrollableFrame):
             self,
             text="Status: Idle",
             font=ctk.CTkFont(family="Segoe UI", size=13),
-            text_color="#E0E0E0"
+            text_color="#6a82fb"
         )
         self.status_label.grid(row=6, column=0, padx=20, pady=10, sticky="w")
 
@@ -310,7 +380,14 @@ class ProcessPage(ctk.CTkScrollableFrame):
 
 class CredentialsPage(ctk.CTkScrollableFrame):
     def __init__(self, master, process_page=None):
-        super().__init__(master, label_text="Manage Virtual Agent Credentials", label_font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"), fg_color="#1e1e1e")
+        super().__init__(
+            master,
+            label_text="Manage Virtual Agent Credentials",
+            label_font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
+            fg_color=BG_LIGHT,
+            corner_radius=16,
+            border_width=0
+        )
         self.grid_columnconfigure(0, weight=1)
         self._process_page = process_page
         self.agents = []  # List to store agent data: [name, username, password, is_permanent]
@@ -344,9 +421,9 @@ class CredentialsPage(ctk.CTkScrollableFrame):
         self.entry_agent_name = ctk.CTkEntry(
             self,
             placeholder_text="Agent Name",
-            font=ctk.CTkFont(family="Segoe UI", size=12),
-            fg_color="#2f2f2f",
-            text_color="#E0E0E0",
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+            fg_color=CARD_BG,
+            text_color=SIDEBAR_BTN_TEXT,
             corner_radius=12
         )
         self.entry_agent_name.grid(row=2, column=0, pady=5, padx=20, sticky="ew")
@@ -355,9 +432,9 @@ class CredentialsPage(ctk.CTkScrollableFrame):
         self.entry_username = ctk.CTkEntry(
             self,
             placeholder_text="Username",
-            font=ctk.CTkFont(family="Segoe UI", size=12),
-            fg_color="#2f2f2f",
-            text_color="#E0E0E0",
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+            fg_color=CARD_BG,
+            text_color=SIDEBAR_BTN_TEXT,
             corner_radius=12
         )
         self.entry_username.grid(row=3, column=0, pady=5, padx=20, sticky="ew")
@@ -367,9 +444,9 @@ class CredentialsPage(ctk.CTkScrollableFrame):
             self,
             placeholder_text="Password",
             show="*",
-            font=ctk.CTkFont(family="Segoe UI", size=12),
-            fg_color="#2f2f2f",
-            text_color="#E0E0E0",
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+            fg_color=CARD_BG,
+            text_color=SIDEBAR_BTN_TEXT,
             corner_radius=12
         )
         self.entry_password.grid(row=4, column=0, pady=5, padx=20, sticky="ew")
@@ -381,8 +458,8 @@ class CredentialsPage(ctk.CTkScrollableFrame):
             text="Save Permanently",
             variable=self.save_permanently_var,
             font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color="#E0E0E0",
-            hover_color="#005EA6",
+            text_color=ACCENT,
+            hover_color=SIDEBAR_BTN_HOVER,
             state="disabled"
         )
         self.save_permanently_checkbox.grid(row=5, column=0, pady=10, padx=20, sticky="w")
@@ -392,13 +469,12 @@ class CredentialsPage(ctk.CTkScrollableFrame):
             text="Edit Agent",
             command=self.enable_edit_mode,
             height=48,
-            font=ctk.CTkFont(family="Segoe UI", size=14),
-            corner_radius=12,
-            fg_color="#0078D4",
-            hover_color="#005EA6",
-            border_width=1,
-            border_color="#0078D4",
-            text_color="#E0E0E0",
+            font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"),
+            corner_radius=14,
+            fg_color=SIDEBAR_BTN_BG,
+            hover_color=SIDEBAR_BTN_HOVER,
+            border_width=0,
+            text_color=SIDEBAR_BTN_TEXT,
             state="disabled"
         )
         self.edit_button.grid(row=6, column=0, pady=15, padx=20, sticky="ew")
@@ -408,13 +484,12 @@ class CredentialsPage(ctk.CTkScrollableFrame):
             text="Create Agent",
             command=self.create_agent,
             height=48,
-            font=ctk.CTkFont(family="Segoe UI", size=14),
-            corner_radius=12,
-            fg_color="#0078D4",
-            hover_color="#005EA6",
-            border_width=1,
-            border_color="#0078D4",
-            text_color="#E0E0E0"
+            font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"),
+            corner_radius=14,
+            fg_color=ACCENT,
+            hover_color=SIDEBAR_BTN_HOVER,
+            border_width=0,
+            text_color=SIDEBAR_BTN_TEXT
         )
         self.create_button.grid(row=7, column=0, pady=15, padx=20, sticky="ew")
 
@@ -423,13 +498,12 @@ class CredentialsPage(ctk.CTkScrollableFrame):
             text="Save Changes",
             command=self.save_changes,
             height=48,
-            font=ctk.CTkFont(family="Segoe UI", size=14),
-            corner_radius=12,
-            fg_color="#0078D4",
-            hover_color="#005EA6",
-            border_width=1,
-            border_color="#0078D4",
-            text_color="#E0E0E0",
+            font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"),
+            corner_radius=14,
+            fg_color=ACCENT,
+            hover_color=SIDEBAR_BTN_HOVER,
+            border_width=0,
+            text_color=SIDEBAR_BTN_TEXT,
             state="disabled"
         )
         self.save_changes_button.grid(row=8, column=0, pady=15, padx=20, sticky="ew")
@@ -548,7 +622,14 @@ class CredentialsPage(ctk.CTkScrollableFrame):
 
 class StatsPage(ctk.CTkScrollableFrame):
     def __init__(self, master):
-        super().__init__(master, label_text="Aegis Statistics", label_font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"), fg_color="#1e1e1e")
+        super().__init__(
+            master,
+            label_text="Aegis Statistics",
+            label_font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
+            fg_color=BG_LIGHT,
+            corner_radius=16,
+            border_width=0
+        )
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
@@ -571,14 +652,14 @@ class StatsPage(ctk.CTkScrollableFrame):
         for idx, (key, value) in enumerate(processing_stats.items()):
             col = idx % 2
             row = (idx // 2) + 1
-            frame = ctk.CTkFrame(self, fg_color="#2f2f2f", corner_radius=8)
-            frame.grid(row=row, column=col, padx=10, pady=5, sticky="ew")
+            frame = ctk.CTkFrame(self, fg_color=CARD_BG, corner_radius=12)
+            frame.grid(row=row, column=col, padx=14, pady=7, sticky="ew")
             ctk.CTkLabel(
                 frame,
                 text=f"{key}: {value}",
-                font=ctk.CTkFont(family="Segoe UI", size=14),
-                text_color="#E0E0E0"
-            ).pack(side="left", padx=10)
+                font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"),
+                text_color=SIDEBAR_BTN_TEXT
+            ).pack(side="left", padx=12)
 
         # Performance Metrics Header
         performance_row = (len(processing_stats) // 2) + 2
@@ -599,14 +680,14 @@ class StatsPage(ctk.CTkScrollableFrame):
         for idx, (key, value) in enumerate(performance_metrics.items()):
             col = idx % 2
             row = performance_row + 1 + (idx // 2)
-            frame = ctk.CTkFrame(self, fg_color="#2f2f2f", corner_radius=8)
-            frame.grid(row=row, column=col, padx=10, pady=5, sticky="ew")
+            frame = ctk.CTkFrame(self, fg_color=CARD_BG, corner_radius=12)
+            frame.grid(row=row, column=col, padx=14, pady=7, sticky="ew")
             ctk.CTkLabel(
                 frame,
                 text=f"{key}: {value}",
-                font=ctk.CTkFont(family="Segoe UI", size=14),
-                text_color="#E0E0E0"
-            ).pack(side="left", padx=10)
+                font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"),
+                text_color=SIDEBAR_BTN_TEXT
+            ).pack(side="left", padx=12)
 
 
 if __name__ == "__main__":
