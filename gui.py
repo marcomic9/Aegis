@@ -2,179 +2,152 @@ import os
 import customtkinter as ctk
 import tkinter.filedialog as fd
 from tkinterdnd2 import TkinterDnD, DND_FILES
+import db
+import keyring
+import json
 
-# --- SUNSET COLOR PALETTE & STYLE VARIABLES ---
-# These colors are inspired by a sunset: warm oranges, pinks, purples, and gradients.
-SUNSET_GRADIENT = ["#ff9966", "#ff5e62", "#ec6ead", "#6a82fb"]  # orange, pink, purple, blue
-BG_DARK = "#231942"  # deep purple background
-BG_LIGHT = "#f8f7ff"  # soft white for contrast
-SIDEBAR_BG = "#3d2956"  # muted purple for sidebar
-SIDEBAR_BTN_BG = "#ff7e5f"  # vibrant orange-pink for buttons
-SIDEBAR_BTN_HOVER = "#feb47b"  # lighter orange for hover
-SIDEBAR_BTN_TEXT = "#fff6f6"  # off-white text
-CARD_BG = "#432371"  # card/frame background
-SHADOW = "#1a1333"  # subtle shadow color
-ACCENT = "#f953c6"  # pink accent
-SUCCESS = "#00CC00"
-ERROR = "#FF4C4C"
+# --- MODERN DARK BLUE & GREY PALETTE ---
+DARK_BLUE = "#1a2233"  # main background
+MID_BLUE = "#22304a"    # sidebar, cards
+LIGHT_GREY = "#f4f6fa"  # content background
+MID_GREY = "#b0b8c1"    # accent, icons
+WHITE = "#ffffff"       # text
+ACCENT_BLUE = "#3a7bd5" # accent
+SOFT_SUCCESS = "#6fdc8c"  # softer green
+SOFT_ERROR = "#ff8a8a"    # softer red
+SUCCESS = SOFT_SUCCESS
+ERROR = SOFT_ERROR
 
-# --- GradientLabel: Large app name with gradient and shadow ---
-class GradientLabel(ctk.CTkCanvas):
-    def __init__(self, master, text, font, gradient_colors, shadow_color, **kwargs):
-        # Remove bg="transparent" to avoid Tkinter color error
-        super().__init__(master, highlightthickness=0, **kwargs)
+# --- Modern App Name Header ---
+class ModernHeader(ctk.CTkCanvas):
+    def __init__(self, master, text, **kwargs):
+        super().__init__(master, highlightthickness=0, bg=DARK_BLUE, **kwargs)
         self.text = text
-        self.font = font
-        self.gradient_colors = gradient_colors
-        self.shadow_color = shadow_color
-        self.bind("<Configure>", self._draw_gradient_text)
-
-    def _draw_gradient_text(self, event=None):
+        self.font = ("Segoe UI", 44, "bold")
+        self.bind("<Configure>", self._draw)
+    def _draw(self, event=None):
         self.delete("all")
         width = self.winfo_width()
         height = self.winfo_height()
-        if width < 10 or height < 10:
-            return
-        # Draw shadow
+        # Subtle shadow
         self.create_text(
             width // 2 + 2, height // 2 + 2,
             text=self.text,
             font=self.font,
-            fill=self.shadow_color,
+            fill="#000000",
             anchor="center"
         )
-        # Draw gradient text (simulate by overlaying text in gradient colors)
-        n = len(self.gradient_colors)
-        for i, color in enumerate(self.gradient_colors):
-            offset = int((i - n // 2) * 1.5)
-            self.create_text(
-                width // 2 + offset, height // 2 + offset,
-                text=self.text,
-                font=self.font,
-                fill=color,
-                anchor="center"
-            )
+        # Main text
+        self.create_text(
+            width // 2, height // 2,
+            text=self.text,
+            font=self.font,
+            fill=WHITE,
+            anchor="center"
+        )
+        # Underline accent
+        self.create_line(
+            width // 2 - 90, height // 2 + 32,
+            width // 2 + 90, height // 2 + 32,
+            fill=ACCENT_BLUE, width=4, capstyle="round"
+        )
 
-# Set permanent dark theme
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("dark-blue")
 
-class AegisApp(TkinterDnD.Tk):
+# --- Sidebar Tabs ---
+PAGES = ["Home", "Excel", "Results", "Virtual Agent", "Stats"]
+
+class AutomateAgentApp(TkinterDnD.Tk):
     def __init__(self):
         super().__init__()
         try:
             self.tk.call('package', 'require', 'tkdnd')
-            print("Successfully loaded 'tkdnd' package.")
-        except Exception as e:
-            print("⚠️ Failed to load 'tkdnd' package. Drag-and-drop may not work.")
-            print("Details:", e)
-
-        self.title("Aegis - PDF Automation Assistant")
+        except Exception:
+            pass
+        self.title("AutomateAgent - PDF Automation Assistant")
         self.geometry("1200x750")
         self.minsize(1000, 650)
-        self.configure(bg=BG_DARK)
-
-        # Main CTkFrame as the app container
-        self.app_frame = ctk.CTkFrame(self, fg_color=BG_DARK, corner_radius=18)
+        self.configure(bg=DARK_BLUE)
+        self.credits = 100  # Example credit count, should be dynamic in real app
+        self.app_frame = ctk.CTkFrame(self, fg_color=DARK_BLUE, corner_radius=18)
         self.app_frame.pack(fill="both", expand=True)
         self.app_frame.grid_columnconfigure(0, weight=0)
         self.app_frame.grid_columnconfigure(1, weight=1)
         self.app_frame.grid_rowconfigure(1, weight=1)
-
-        # --- App Name Gradient Label at Top Center ---
-        self.header = GradientLabel(
+        # Modern header
+        self.header = ModernHeader(
             self.app_frame,
-            text="Aegis",
-            font=("Segoe UI", 44, "bold"),
-            gradient_colors=SUNSET_GRADIENT,
-            shadow_color=SHADOW,
+            text="AutomateAgent",
             width=600,
-            height=80
+            height=90
         )
         self.header.grid(row=0, column=0, columnspan=2, pady=(24, 8), sticky="n")
-
-        # Sidebar and main content
-        self.sidebar = Sidebar(self.app_frame)
+        self.sidebar = ModernSidebar(self.app_frame, self)
         self.sidebar.grid(row=1, column=0, sticky="nswe", padx=(24, 12), pady=(0, 24))
-
-        self.main_content = MainContent(self.app_frame)
+        self.main_content = ModernMainContent(self.app_frame, app=self)
         self.main_content.grid(row=1, column=1, sticky="nsew", padx=(12, 24), pady=(0, 24))
-
-        # Enable drag-and-drop
         self.drop_target_register(DND_FILES)
         self.dnd_bind('<<Drop>>', self.handle_drop)
-
     def handle_drop(self, event):
-        try:
-            files = self.tk.splitlist(event.data)
-            pdf_files = [f for f in files if f.lower().endswith('.pdf')]
-            if pdf_files:
-                self.main_content.process_page.handle_dropped_files(pdf_files)
-            else:
-                self.main_content.process_page.update_status_label("Only PDF files are accepted.", text_color="#FF4C4C")
-        except Exception as e:
-            print(f"Error handling drop: {e}")
-            self.main_content.process_page.update_status_label("Error processing dropped files.", text_color="#FF4C4C")
+        if self.main_content.current_page == "Home":
+            try:
+                files = self.tk.splitlist(event.data)
+                pdf_files = [f for f in files if f.lower().endswith('.pdf')]
+                if pdf_files:
+                    self.main_content.pages["Home"].handle_dropped_files(pdf_files)
+                else:
+                    self.main_content.pages["Home"].update_status_label("Only PDF files are accepted.", text_color=ERROR)
+            except Exception:
+                self.main_content.pages["Home"].update_status_label("Error processing dropped files.", text_color=ERROR)
 
-
-class Sidebar(ctk.CTkFrame):
-    def __init__(self, master):
-        super().__init__(master, width=270, corner_radius=18, fg_color=SIDEBAR_BG)
+# --- Modern Sidebar Navigation ---
+class ModernSidebar(ctk.CTkFrame):
+    def __init__(self, master, app):
+        super().__init__(master, width=240, corner_radius=18, fg_color=MID_BLUE)
         self.grid_propagate(False)
-        self.grid_rowconfigure(5, weight=1)
-
+        self.grid_rowconfigure(len(PAGES)+1, weight=1)
+        self.grid_columnconfigure(0, weight=1)  # Make buttons stretch full width
         ctk.CTkLabel(
             self,
-            text="Aegis Menu",
+            text="Menu",
             font=ctk.CTkFont(family="Segoe UI", size=22, weight="bold"),
-            text_color=SIDEBAR_BTN_TEXT
+            text_color=WHITE,
+            fg_color="transparent"
         ).grid(row=0, column=0, pady=(28, 18), padx=24, sticky="w")
-
-        buttons = [
-            ("📁 Process Files", lambda: master.master.main_content.show_page("process")),
-            ("🔐 Virtual Agents", lambda: master.master.main_content.show_page("credentials")),
-            ("📊 Statistics", lambda: master.master.main_content.show_page("stats"))
-        ]
-        for idx, (text, command) in enumerate(buttons, start=1):
+        for idx, page in enumerate(PAGES, start=1):
             ctk.CTkButton(
                 self,
-                text=text,
-                command=command,
-                height=56,
-                font=ctk.CTkFont(family="Segoe UI", size=17, weight="bold"),
-                corner_radius=14,
-                fg_color=SIDEBAR_BTN_BG,
-                hover_color=SIDEBAR_BTN_HOVER,
+                text=page,
+                command=lambda p=page: app.main_content.show_page(p),
+                height=64,  # Larger button height
+                font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
+                corner_radius=16,
+                fg_color=DARK_BLUE,
+                hover_color=ACCENT_BLUE,
                 border_width=0,
-                text_color=SIDEBAR_BTN_TEXT,
+                text_color=WHITE,
                 anchor="w"
-            ).grid(row=idx, column=0, pady=10, padx=18, sticky="ew")
+            ).grid(row=idx, column=0, pady=12, padx=18, sticky="ew")
 
-
-class MainContent(ctk.CTkFrame):
-    def __init__(self, master):
-        super().__init__(master, corner_radius=18, fg_color=BG_LIGHT)
+# --- Modern Main Content/Page Manager ---
+class ModernMainContent(ctk.CTkFrame):
+    def __init__(self, master, app):
+        super().__init__(master, corner_radius=18, fg_color=LIGHT_GREY)
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
-
-        self.pages = {}
-        self.process_page = ProcessPage(self)
-        self.credentials_page = CredentialsPage(self, process_page=self.process_page)
-        self.stats_page = StatsPage(self)
-
         self.pages = {
-            "process": self.process_page,
-            "credentials": self.credentials_page,
-            "stats": self.stats_page
+            "Home": HomePage(self, app),
+            "Excel": ExcelPage(self, app),
+            "Results": ResultsPage(self),
+            "Virtual Agent": VirtualAgentPage(self),
+            "Stats": StatsPage(self)
         }
-
         for page_name, page_widget in self.pages.items():
             page_widget.grid(row=0, column=0, sticky="nsew")
-            if page_name != "process":
+            if page_name != "Home":
                 page_widget.grid_remove()
-
-        self.current_page = "process"
-
+        self.current_page = "Home"
     def show_page(self, page_name_to_show: str):
         if page_name_to_show in self.pages:
             self.pages[self.current_page].grid_remove()
@@ -183,150 +156,116 @@ class MainContent(ctk.CTkFrame):
         else:
             print(f"Error: Page '{page_name_to_show}' not found.")
 
-
-class ProcessPage(ctk.CTkScrollableFrame):
-    def __init__(self, master):
+# --- Home Page ---
+class HomePage(ctk.CTkScrollableFrame):
+    def __init__(self, master, app):
         super().__init__(
             master,
-            label_text="Process PDFs",
-            label_font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
-            fg_color=BG_LIGHT,
+            fg_color=LIGHT_GREY,
             corner_radius=16,
             border_width=0
         )
         self.grid_columnconfigure(0, weight=1)
-
         self.selected_files = []
-        self.animation_id = None
-        self.is_processing = False
-        self.idle_color_index = 0
-        self.processing_dots = 0
-
+        self.id_count = 0
+        self.status_label = None
+        self.file_info_label = None
+        self.app = app
+        self.selected_agent = ctk.StringVar()
+        self.agent_names = self.load_agent_names()
+        self._build_ui()
+    def load_agent_names(self):
+        try:
+            with open("agents.json", "r", encoding="utf-8") as f:
+                agents = json.load(f)
+                return [a["name"] for a in agents]
+        except Exception:
+            return []
+    def _build_ui(self):
+        # Credit counter at the top
+        self.credit_label = ctk.CTkLabel(
+            self,
+            text=f"Credits Left: {self.app.credits}",
+            font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
+            text_color=ACCENT_BLUE
+        )
+        self.credit_label.grid(row=0, column=0, padx=20, pady=(15, 5), sticky="e")
+        # Agent selection dropdown
+        agent_frame = ctk.CTkFrame(self, fg_color=WHITE, corner_radius=10)
+        agent_frame.grid(row=1, column=0, padx=20, pady=(5, 5), sticky="ew")
+        ctk.CTkLabel(agent_frame, text="Select Virtual Agent:", font=ctk.CTkFont(size=14, weight="bold"), text_color=MID_BLUE).pack(side="left", padx=(10, 4))
+        self.agent_dropdown = ctk.CTkOptionMenu(agent_frame, variable=self.selected_agent, values=self.agent_names, width=180, font=ctk.CTkFont(size=13))
+        self.agent_dropdown.pack(side="left", padx=4, pady=6)
+        if self.agent_names:
+            self.selected_agent.set(self.agent_names[0])
         ctk.CTkLabel(
             self,
-            text="Select Virtual Agent Profile:",
-            font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
-            text_color="#E0E0E0"
-        ).grid(row=0, column=0, padx=20, pady=(15, 5), sticky="w")
-
-        self.profile_values = ["Custom", "Marco's VA", "Admin VA"]
-        self.selected_profile = ctk.StringVar(value="Custom")
-        self.profile_menu = ctk.CTkOptionMenu(
-            self,
-            variable=self.selected_profile,
-            values=self.profile_values,
-            font=ctk.CTkFont(family="Segoe UI", size=12),
-            dropdown_font=ctk.CTkFont(family="Segoe UI", size=12),
-            corner_radius=12,
-            fg_color="#2f2f2f",
-            button_color="#0078D4",
-            button_hover_color="#005EA6",
-            text_color="#E0E0E0"
-        )
-        self.profile_menu.grid(row=1, column=0, padx=20, pady=5, sticky="ew")
-        self.profile_menu.set("Custom")
-
+            text="Drag-and-drop or click to upload PDF files",
+            font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"),
+            text_color=MID_BLUE
+        ).grid(row=2, column=0, padx=20, pady=(5, 5), sticky="w")
         self.file_drop_frame = ctk.CTkFrame(
             self,
-            height=150,
-            fg_color=CARD_BG,
-            corner_radius=16,
+            height=140,
+            fg_color=WHITE,
+            corner_radius=14,
             border_width=2,
-            border_color=ACCENT
+            border_color=ACCENT_BLUE
         )
-        self.file_drop_frame.grid(row=2, column=0, padx=20, pady=15, sticky="ew")
+        self.file_drop_frame.grid(row=3, column=0, padx=20, pady=15, sticky="ew")
         self.file_drop_frame.grid_propagate(False)
-
         self.file_info_label = ctk.CTkLabel(
             self.file_drop_frame,
             text="Drop PDFs here or click to browse",
             font=ctk.CTkFont(family="Segoe UI", size=14),
-            text_color="#E0E0E0",
+            text_color=MID_BLUE,
             fg_color="transparent",
             wraplength=600
         )
         self.file_info_label.place(relx=0.5, rely=0.5, anchor="center")
-
         self.file_drop_frame.bind("<Button-1>", self.browse_files)
-        self.file_drop_frame.bind("<Enter>", lambda e: self.file_drop_frame.configure(fg_color="#3a3a3a"))
-        self.file_drop_frame.bind("<Leave>", lambda e: self.file_drop_frame.configure(fg_color="#2f2f2f"))
-
+        self.file_drop_frame.bind("<Enter>", lambda e: self.file_drop_frame.configure(fg_color=MID_GREY))
+        self.file_drop_frame.bind("<Leave>", lambda e: self.file_drop_frame.configure(fg_color=WHITE))
         self.browse_button = ctk.CTkButton(
             self,
             text="📂 Browse Files",
             command=self.browse_files,
-            height=48,
+            height=44,
             font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"),
-            corner_radius=14,
-            fg_color=SIDEBAR_BTN_BG,
-            hover_color=SIDEBAR_BTN_HOVER,
+            corner_radius=12,
+            fg_color=MID_BLUE,
+            hover_color=ACCENT_BLUE,
             border_width=0,
-            text_color=SIDEBAR_BTN_TEXT
+            text_color=WHITE
         )
-        self.browse_button.grid(row=3, column=0, pady=10, padx=20, sticky="ew")
-
-        self.open_excel_var = ctk.BooleanVar()
-        self.open_excel_checkbox = ctk.CTkCheckBox(
+        self.browse_button.grid(row=4, column=0, pady=10, padx=20, sticky="ew")
+        self.id_count_label = ctk.CTkLabel(
             self,
-            text="Open Excel after processing",
-            variable=self.open_excel_var,
-            font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color="#E0E0E0",
-            hover_color="#005EA6"
+            text="IDs found: 0",
+            font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
+            text_color=ACCENT_BLUE
         )
-        self.open_excel_checkbox.grid(row=4, column=0, pady=10, padx=20, sticky="w")
-
+        self.id_count_label.grid(row=5, column=0, padx=20, pady=5, sticky="w")
         self.start_button = ctk.CTkButton(
             self,
-            text="🚀 Start Processing",
-            command=self.start_processing,
-            height=48,
+            text="🚀 Start Automation",
+            command=self.start_automation,
+            height=44,
             font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"),
-            corner_radius=14,
-            fg_color=ACCENT,
-            hover_color=SIDEBAR_BTN_HOVER,
+            corner_radius=12,
+            fg_color=ACCENT_BLUE,
+            hover_color=MID_BLUE,
             border_width=0,
-            text_color=SIDEBAR_BTN_TEXT
+            text_color=WHITE
         )
-        self.start_button.grid(row=5, column=0, pady=15, padx=20, sticky="ew")
-
+        self.start_button.grid(row=6, column=0, pady=15, padx=20, sticky="ew")
         self.status_label = ctk.CTkLabel(
             self,
             text="Status: Idle",
             font=ctk.CTkFont(family="Segoe UI", size=13),
-            text_color="#6a82fb"
+            text_color=MID_BLUE
         )
-        self.status_label.grid(row=6, column=0, padx=20, pady=10, sticky="w")
-
-        self.start_idle_animation()
-
-    def start_idle_animation(self):
-        if self.is_processing or not self.status_label:
-            return
-        if self.animation_id:
-            self.after_cancel(self.animation_id)
-        colors = ["#E0E0E0", "#A0A0A0"]
-        self.status_label.configure(text_color=colors[self.idle_color_index])
-        self.idle_color_index = (self.idle_color_index + 1) % 2
-        self.animation_id = self.after(1000, self.start_idle_animation)
-
-    def start_processing_animation(self):
-        if not self.status_label:
-            return
-        if self.animation_id:
-            self.after_cancel(self.animation_id)
-        dots = "." * (self.processing_dots + 1)
-        self.status_label.configure(text=f"Status: Processing{dots}", text_color="#E0E0E0")
-        self.processing_dots = (self.processing_dots + 1) % 3
-        self.animation_id = self.after(500, self.start_processing_animation)
-
-    def stop_animation(self):
-        if self.animation_id:
-            self.after_cancel(self.animation_id)
-            self.animation_id = None
-        self.idle_color_index = 0
-        self.processing_dots = 0
-
+        self.status_label.grid(row=7, column=0, padx=20, pady=10, sticky="w")
     def browse_files(self, event=None):
         file_paths = fd.askopenfilenames(
             title="Select PDF files",
@@ -335,13 +274,13 @@ class ProcessPage(ctk.CTkScrollableFrame):
         if file_paths:
             self.selected_files = list(file_paths)
             self.update_file_display_label()
-            self.update_status_label(f"{len(self.selected_files)} file(s) selected.", text_color="#E0E0E0")
-
+            self.update_status_label(f"{len(self.selected_files)} file(s) selected.", text_color=MID_BLUE)
+            self.update_id_count()
     def handle_dropped_files(self, file_paths: list):
         self.selected_files = file_paths
         self.update_file_display_label()
-        self.update_status_label(f"{len(self.selected_files)} file(s) dropped.", text_color="#E0E0E0")
-
+        self.update_status_label(f"{len(self.selected_files)} file(s) dropped.", text_color=MID_BLUE)
+        self.update_id_count()
     def update_file_display_label(self):
         if self.selected_files:
             if len(self.selected_files) == 1:
@@ -351,296 +290,367 @@ class ProcessPage(ctk.CTkScrollableFrame):
                 self.file_info_label.configure(text=f"{len(self.selected_files)} PDF files selected.")
         else:
             self.file_info_label.configure(text="Drop PDFs here or click to browse")
-
-    def update_status_label(self, message: str, text_color="#E0E0E0"):
+    def update_status_label(self, message: str, text_color=MID_BLUE):
         if self.status_label:
-            self.stop_animation()
             self.status_label.configure(text=f"Status: {message}", text_color=text_color)
-            if message == "Idle":
-                self.is_processing = False
-                self.start_idle_animation()
-            elif "Processing" in message:
-                self.is_processing = True
-                self.start_processing_animation()
-
-    def start_processing(self):
+    def update_id_count(self):
+        self.id_count = 0
+        if self.selected_files:
+            self.id_count = len(self.selected_files) * 3
+        self.id_count_label.configure(text=f"IDs found: {self.id_count}")
+    def start_automation(self):
         if not self.selected_files:
-            self.update_status_label("No files selected to process!", text_color="#FF4C4C")
+            self.update_status_label("No files selected to process!", text_color=ERROR)
             return
-        selected_profile = self.selected_profile.get()
-        self.update_status_label(f"Processing {len(self.selected_files)} file(s) with profile: {selected_profile}", text_color="#E0E0E0")
-        print(f"Processing files: {self.selected_files}")
-        print(f"Selected profile: {selected_profile}")
-        print(f"Open Excel after processing: {self.open_excel_var.get()}")
-        self.after(2000, self.on_processing_complete)
+        if not self.selected_agent.get():
+            self.update_status_label("No virtual agent selected!", text_color=ERROR)
+            return
+        self.update_status_label(f"Processing {len(self.selected_files)} file(s) with agent '{self.selected_agent.get()}'...", text_color=MID_BLUE)
+        self.app.update()
+        self.process_pdfs(self.selected_agent.get())
+    def process_pdfs(self, agent_name):
+        import pdf_parser  # Import here to avoid circular import
+        import virtual_agent_scraper  # Import here to avoid circular import
+        total_credits = self.app.credits
+        processed_count = 0
+        for pdf_path in self.selected_files:
+            pdf_filename = os.path.basename(pdf_path)
+            # --- 1. Extract records from PDF ---
+            try:
+                parsed_ids = pdf_parser.parse_pdf(pdf_path)  # Should return a list of dicts
+            except Exception as e:
+                self.update_status_label(f"Error parsing {pdf_filename}: {e}", text_color=ERROR)
+                continue
+            # --- 2. Insert records into DB as 'pending' ---
+            for rec in parsed_ids:
+                db.insert_record(
+                    pdf_filename,
+                    rec.get("municipality", ""),
+                    rec.get("township", ""),
+                    rec.get("sectional_scheme_name", ""),
+                    rec.get("unit", ""),
+                    rec.get("size", ""),
+                    rec.get("name", ""),
+                    rec.get("identifier", "")
+                )
+            # --- 3. Process each record with virtual_agent_scraper ---
+            pending = db.get_pending_ids(pdf_filename)
+            for rec in pending:
+                if total_credits <= 0:
+                    self.update_status_label("No credits left!", text_color=ERROR)
+                    return
+                try:
+                    result = virtual_agent_scraper.scrape(rec, agent_name)  # Pass agent_name
+                    if result:
+                        db.update_status(rec["id"], "done")
+                        processed_count += 1
+                        total_credits -= 1
+                        self.app.credits = total_credits
+                        self.credit_label.configure(text=f"Credits Left: {self.app.credits}")
+                        self.update_status_label(f"Processed ID: {rec['identifier']}", text_color=SUCCESS)
+                    else:
+                        self.update_status_label(f"Failed: {rec['identifier']}", text_color=ERROR)
+                except Exception as e:
+                    self.update_status_label(f"Error: {e}", text_color=ERROR)
+                self.app.update()
+        self.update_status_label(f"Finished! {processed_count} IDs processed.", text_color=SUCCESS)
 
-    def on_processing_complete(self):
-        self.update_status_label("Processing complete!", text_color="#00CC00")
-
-
-class CredentialsPage(ctk.CTkScrollableFrame):
-    def __init__(self, master, process_page=None):
-        super().__init__(
-            master,
-            label_text="Manage Virtual Agent Credentials",
-            label_font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
-            fg_color=BG_LIGHT,
-            corner_radius=16,
-            border_width=0
-        )
-        self.grid_columnconfigure(0, weight=1)
-        self._process_page = process_page
-        self.agents = []  # List to store agent data: [name, username, password, is_permanent]
-        self.selected_agent_index = ctk.IntVar(value=-1)  # Track selected agent for editing
-        self.is_editing = False  # Track editing mode
-
-        # Agent Selection
+# --- Placeholder Pages ---
+class ExcelPage(ctk.CTkFrame):
+    def __init__(self, master, app):
+        super().__init__(master, fg_color=LIGHT_GREY, corner_radius=16)
+        self.app = app
+        self.open_excel_var = ctk.BooleanVar(value=True)
+        self.save_path_var = ctk.StringVar(value="")
+        self._build_ui()
+    def _build_ui(self):
         ctk.CTkLabel(
             self,
-            text="Select Agent:",
-            font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
-            text_color="#E0E0E0"
-        ).grid(row=0, column=0, pady=(15, 5), padx=20, sticky="w")
-
-        self.agent_menu = ctk.CTkOptionMenu(
+            text="Excel Export Settings",
+            font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
+            text_color=MID_BLUE
+        ).pack(pady=(30, 10), anchor="w", padx=30)
+        ctk.CTkCheckBox(
             self,
-            values=["Create New Agent"] + [agent[0] for agent in self.agents],
-            command=self.on_agent_select,
-            font=ctk.CTkFont(family="Segoe UI", size=12),
-            dropdown_font=ctk.CTkFont(family="Segoe UI", size=12),
-            corner_radius=12,
-            fg_color="#2f2f2f",
-            button_color="#0078D4",
-            button_hover_color="#005EA6",
-            text_color="#E0E0E0"
-        )
-        self.agent_menu.grid(row=1, column=0, pady=5, padx=20, sticky="ew")
-        self.agent_menu.set("Create New Agent")
-
-        # Input Fields (corrected to remove text_color_disabled)
-        self.entry_agent_name = ctk.CTkEntry(
-            self,
-            placeholder_text="Agent Name",
+            text="Open Excel after completion",
+            variable=self.open_excel_var,
+            font=ctk.CTkFont(family="Segoe UI", size=15),
+            text_color=MID_BLUE
+        ).pack(pady=10, anchor="w", padx=40)
+        frame = ctk.CTkFrame(self, fg_color=WHITE, corner_radius=12)
+        frame.pack(pady=20, padx=30, fill="x")
+        ctk.CTkLabel(
+            frame,
+            text="Save Excel to:",
+            font=ctk.CTkFont(family="Segoe UI", size=14),
+            text_color=MID_BLUE
+        ).pack(side="left", padx=10, pady=10)
+        ctk.CTkEntry(
+            frame,
+            textvariable=self.save_path_var,
+            width=320,
             font=ctk.CTkFont(family="Segoe UI", size=13),
-            fg_color=CARD_BG,
-            text_color=SIDEBAR_BTN_TEXT,
-            corner_radius=12
-        )
-        self.entry_agent_name.grid(row=2, column=0, pady=5, padx=20, sticky="ew")
-        self.entry_agent_name.configure(state="disabled", text_color="#808080")
-
-        self.entry_username = ctk.CTkEntry(
-            self,
-            placeholder_text="Username",
-            font=ctk.CTkFont(family="Segoe UI", size=13),
-            fg_color=CARD_BG,
-            text_color=SIDEBAR_BTN_TEXT,
-            corner_radius=12
-        )
-        self.entry_username.grid(row=3, column=0, pady=5, padx=20, sticky="ew")
-        self.entry_username.configure(state="disabled", text_color="#808080")
-
-        self.entry_password = ctk.CTkEntry(
-            self,
-            placeholder_text="Password",
-            show="*",
-            font=ctk.CTkFont(family="Segoe UI", size=13),
-            fg_color=CARD_BG,
-            text_color=SIDEBAR_BTN_TEXT,
-            corner_radius=12
-        )
-        self.entry_password.grid(row=4, column=0, pady=5, padx=20, sticky="ew")
-        self.entry_password.configure(state="disabled", text_color="#808080")
-
-        self.save_permanently_var = ctk.BooleanVar()
-        self.save_permanently_checkbox = ctk.CTkCheckBox(
-            self,
-            text="Save Permanently",
-            variable=self.save_permanently_var,
-            font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=ACCENT,
-            hover_color=SIDEBAR_BTN_HOVER,
-            state="disabled"
-        )
-        self.save_permanently_checkbox.grid(row=5, column=0, pady=10, padx=20, sticky="w")
-
-        self.edit_button = ctk.CTkButton(
-            self,
-            text="Edit Agent",
-            command=self.enable_edit_mode,
-            height=48,
-            font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"),
-            corner_radius=14,
-            fg_color=SIDEBAR_BTN_BG,
-            hover_color=SIDEBAR_BTN_HOVER,
+            fg_color=LIGHT_GREY,
+            text_color=MID_BLUE,
+            corner_radius=8
+        ).pack(side="left", padx=10, pady=10)
+        ctk.CTkButton(
+            frame,
+            text="Browse",
+            command=self.browse_save_path,
+            height=36,
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+            corner_radius=8,
+            fg_color=ACCENT_BLUE,
+            hover_color=MID_BLUE,
             border_width=0,
-            text_color=SIDEBAR_BTN_TEXT,
-            state="disabled"
+            text_color=WHITE
+        ).pack(side="left", padx=10, pady=10)
+    def browse_save_path(self):
+        file_path = fd.asksaveasfilename(
+            title="Save Excel File As",
+            defaultextension=".xlsx",
+            filetypes=[("Excel Files", "*.xlsx"), ("All files", "*.*")]
         )
-        self.edit_button.grid(row=6, column=0, pady=15, padx=20, sticky="ew")
+        if file_path:
+            self.save_path_var.set(file_path)
 
-        self.create_button = ctk.CTkButton(
-            self,
-            text="Create Agent",
-            command=self.create_agent,
-            height=48,
-            font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"),
-            corner_radius=14,
-            fg_color=ACCENT,
-            hover_color=SIDEBAR_BTN_HOVER,
-            border_width=0,
-            text_color=SIDEBAR_BTN_TEXT
-        )
-        self.create_button.grid(row=7, column=0, pady=15, padx=20, sticky="ew")
+class ResultsPage(ctk.CTkFrame):
+    def __init__(self, master):
+        super().__init__(master, fg_color=LIGHT_GREY, corner_radius=16)
+        self.selected_pdf = ctk.StringVar()
+        self.records = []
+        self._build_ui()
+    def _build_ui(self):
+        ctk.CTkLabel(self, text="Results", font=ctk.CTkFont(size=22, weight="bold"), text_color=ACCENT_BLUE).pack(pady=(24, 10))
+        # PDF selector (centered)
+        selector_frame = ctk.CTkFrame(self, fg_color=WHITE, corner_radius=12)
+        selector_frame.pack(pady=(0, 10), padx=30, fill="x")
+        selector_frame.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(selector_frame, text="Select PDF:", font=ctk.CTkFont(size=15, weight="bold"), text_color=MID_BLUE).grid(row=0, column=0, padx=12, pady=(10, 0), sticky="ew")
+        self.pdfs_dropdown = ctk.CTkOptionMenu(selector_frame, variable=self.selected_pdf, values=self.get_pdf_list(), command=self.on_pdf_select, width=320, font=ctk.CTkFont(size=14))
+        self.pdfs_dropdown.grid(row=1, column=0, padx=12, pady=(2, 10), sticky="ew")
+        # Summary
+        self.summary_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(size=14, weight="bold"), text_color=MID_BLUE)
+        self.summary_label.pack(pady=(0, 8))
+        # Scrollable table area
+        self.table_scroll = ctk.CTkScrollableFrame(self, fg_color=WHITE, corner_radius=14, width=1200, height=350)  # wider
+        self.table_scroll.pack(padx=30, pady=10, fill="both", expand=True)
+        self.table_labels = []
+        self.selected_pdf.trace_add('write', lambda *a: self.display_table())
+        if self.get_pdf_list():
+            self.selected_pdf.set(self.get_pdf_list()[0])
+            self.display_table()
+    def get_pdf_list(self):
+        import db
+        with db.get_conn() as conn:
+            cur = conn.execute('SELECT DISTINCT pdf_filename FROM processed_ids')
+            return [row[0] for row in cur.fetchall()]
+    def on_pdf_select(self, value):
+        self.display_table()
+    def display_table(self):
+        import db
+        for label in self.table_labels:
+            label.destroy()
+        self.table_labels.clear()
+        pdf = self.selected_pdf.get()
+        if not pdf:
+            self.summary_label.configure(text="")
+            return
+        records = db.get_all_records(pdf)
+        headers = ["municipality", "township", "sectional_scheme_name", "unit", "size", "name", "identifier", "status", "processed_at"]
+        # Summary
+        total = len(records)
+        done = sum(1 for r in records if r.get("status") == "done")
+        pending = total - done
+        self.summary_label.configure(text=f"Total IDs: {total}   Done: {done}   Pending: {pending}")
+        # Header row
+        for col, h in enumerate(headers):
+            lbl = ctk.CTkLabel(self.table_scroll, text=h.upper(), font=ctk.CTkFont(size=13, weight="bold"), text_color=ACCENT_BLUE, fg_color=LIGHT_GREY, width=22)
+            lbl.grid(row=0, column=col, padx=6, pady=4, sticky="nsew")
+            self.table_labels.append(lbl)
+        # Data rows with alternating colors
+        for row, rec in enumerate(records, start=1):
+            bg = MID_GREY if row % 2 == 0 else WHITE
+            for col, h in enumerate(headers):
+                val = rec.get(h, "")
+                # Use a label with wraplength for text wrapping
+                lbl = ctk.CTkLabel(self.table_scroll, text=str(val), font=ctk.CTkFont(size=12), text_color=MID_BLUE, fg_color=bg, width=22, wraplength=140, anchor="w", justify="left")
+                lbl.grid(row=row, column=col, padx=6, pady=2, sticky="nsew")
+                self.table_labels.append(lbl)
 
-        self.save_changes_button = ctk.CTkButton(
-            self,
-            text="Save Changes",
-            command=self.save_changes,
-            height=48,
-            font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"),
-            corner_radius=14,
-            fg_color=ACCENT,
-            hover_color=SIDEBAR_BTN_HOVER,
-            border_width=0,
-            text_color=SIDEBAR_BTN_TEXT,
-            state="disabled"
-        )
-        self.save_changes_button.grid(row=8, column=0, pady=15, padx=20, sticky="ew")
+AGENTS_FILE = "agents.json"
 
-    def on_agent_select(self, selected_agent):
+class VirtualAgentPage(ctk.CTkFrame):
+    def __init__(self, master):
+        super().__init__(master, fg_color=LIGHT_GREY, corner_radius=16)
+        self.agents = self.load_agents()
+        self.selected_agent = ctk.StringVar()
         self.is_editing = False
-        if selected_agent == "Create New Agent":
-            self.selected_agent_index.set(-1)
-            self.entry_agent_name.delete(0, 'end')
-            self.entry_username.delete(0, 'end')
-            self.entry_password.delete(0, 'end')
-            self.save_permanently_var.set(False)
-            self.entry_agent_name.configure(state="normal", text_color="#E0E0E0")
-            self.entry_username.configure(state="normal", text_color="#E0E0E0")
-            self.entry_password.configure(state="normal", text_color="#E0E0E0")
-            self.save_permanently_checkbox.configure(state="normal")
-            self.edit_button.configure(state="disabled")
-            self.save_changes_button.configure(state="disabled")
-        else:
-            index = [agent[0] for agent in self.agents].index(selected_agent)
-            self.selected_agent_index.set(index)
-            agent = self.agents[index]
-            self.entry_agent_name.delete(0, 'end')
-            self.entry_username.delete(0, 'end')
-            self.entry_password.delete(0, 'end')
-            self.entry_agent_name.insert(0, agent[0])
-            self.entry_username.insert(0, agent[1])
-            self.entry_password.insert(0, agent[2])
-            self.save_permanently_var.set(agent[3])
-            self.entry_agent_name.configure(state="disabled", text_color="#808080")
-            self.entry_username.configure(state="disabled", text_color="#808080")
-            self.entry_password.configure(state="disabled", text_color="#808080")
-            self.save_permanently_checkbox.configure(state="disabled")
-            self.edit_button.configure(state="normal")
-            self.save_changes_button.configure(state="disabled")
-
-    def enable_edit_mode(self):
+        self.status_label = None
+        self._build_ui()
+    def _build_ui(self):
+        for widget in self.winfo_children():
+            widget.destroy()
+        ctk.CTkLabel(self, text="Virtual Agent Credentials", font=ctk.CTkFont(size=24, weight="bold"), text_color=ACCENT_BLUE).pack(pady=(32, 16))
+        main_frame = ctk.CTkFrame(self, fg_color=WHITE, corner_radius=18)
+        main_frame.pack(padx=40, pady=20, fill="both", expand=True)
+        main_frame.grid_columnconfigure(0, weight=1)
+        main_frame.grid_columnconfigure(1, weight=2)
+        # Left: Card-style agent list
+        left_panel = ctk.CTkFrame(main_frame, fg_color=LIGHT_GREY, corner_radius=14, width=340)
+        left_panel.grid(row=0, column=0, padx=24, pady=24, sticky="nsew")
+        left_panel.grid_propagate(False)
+        left_panel.grid_rowconfigure(3, weight=1)  # Make agent list expand
+        # Add Agent button at the top, more prominent, more space below
+        self.add_agent_btn = ctk.CTkButton(left_panel, text="＋ Add Agent", command=self.add_agent, fg_color=ACCENT_BLUE, text_color=WHITE, font=ctk.CTkFont(size=16, weight="bold"), height=48, corner_radius=14)
+        self.add_agent_btn.grid(row=0, column=0, padx=18, pady=(18, 12), sticky="ew")
+        # Saved Agents label with more space
+        ctk.CTkLabel(left_panel, text="Saved Agents", font=ctk.CTkFont(size=17, weight="bold"), text_color=MID_BLUE).grid(row=1, column=0, pady=(0, 14), padx=20, sticky="w")
+        # Scrollable agent list with more padding
+        self.agent_list_frame = ctk.CTkScrollableFrame(left_panel, fg_color=LIGHT_GREY, corner_radius=14, width=300, height=420)
+        self.agent_list_frame.grid(row=3, column=0, padx=16, pady=(0, 10), sticky="nsew")
+        # Right: Agent details form
+        right_panel = ctk.CTkFrame(main_frame, fg_color=WHITE, corner_radius=14)
+        right_panel.grid(row=0, column=1, padx=24, pady=24, sticky="nsew")
+        right_panel.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(right_panel, text="Agent Details", font=ctk.CTkFont(size=16, weight="bold"), text_color=MID_BLUE).grid(row=0, column=0, columnspan=2, pady=(16, 12))
+        ctk.CTkLabel(right_panel, text="Agent Name", font=ctk.CTkFont(size=13), text_color=MID_BLUE).grid(row=1, column=0, padx=12, pady=10, sticky="e")
+        self.entry_name = ctk.CTkEntry(right_panel, placeholder_text="Agent Name", font=ctk.CTkFont(size=15))
+        self.entry_name.grid(row=1, column=1, padx=12, pady=10, sticky="ew")
+        ctk.CTkLabel(right_panel, text="Username", font=ctk.CTkFont(size=13), text_color=MID_BLUE).grid(row=2, column=0, padx=12, pady=10, sticky="e")
+        self.entry_username = ctk.CTkEntry(right_panel, placeholder_text="Username", font=ctk.CTkFont(size=15))
+        self.entry_username.grid(row=2, column=1, padx=12, pady=10, sticky="ew")
+        ctk.CTkLabel(right_panel, text="Password", font=ctk.CTkFont(size=13), text_color=MID_BLUE).grid(row=3, column=0, padx=12, pady=10, sticky="e")
+        self.entry_password = ctk.CTkEntry(right_panel, placeholder_text="Password", show="*", font=ctk.CTkFont(size=15))
+        self.entry_password.grid(row=3, column=1, padx=12, pady=10, sticky="ew")
+        # Buttons
+        btn_frame = ctk.CTkFrame(right_panel, fg_color=WHITE)
+        btn_frame.grid(row=4, column=0, columnspan=2, pady=(18, 8))
+        self.save_button = ctk.CTkButton(btn_frame, text="Save", command=self.save_agent, fg_color=SUCCESS, text_color=WHITE, width=120, font=ctk.CTkFont(size=15, weight="bold"))
+        self.save_button.pack(side="left", padx=10)
+        self.cancel_button = ctk.CTkButton(btn_frame, text="Cancel", command=self.cancel_edit, fg_color=ERROR, text_color=WHITE, width=120, font=ctk.CTkFont(size=15, weight="bold"))
+        self.cancel_button.pack(side="left", padx=10)
+        self.status_label = ctk.CTkLabel(right_panel, text="", font=ctk.CTkFont(size=12), text_color=ERROR)
+        self.status_label.grid(row=5, column=0, columnspan=2, pady=(6, 0))
+        self.set_fields_state("disabled")
+        self.display_agent_list()
+    def display_agent_list(self):
+        for widget in self.agent_list_frame.winfo_children():
+            widget.destroy()
+        if not self.agents:
+            ctk.CTkLabel(self.agent_list_frame, text="No agents saved yet. Click '＋ Add Agent' to create one.", font=ctk.CTkFont(size=13), text_color=MID_BLUE, wraplength=260, justify="left").pack(pady=30)
+            return
+        for idx, agent in enumerate(self.agents):
+            card = ctk.CTkFrame(self.agent_list_frame, fg_color=WHITE, corner_radius=14, border_width=2, border_color=MID_GREY, height=64)
+            card.pack(fill="x", pady=(0, 14), padx=4)
+            card.pack_propagate(False)
+            # Agent name larger and centered vertically
+            name_lbl = ctk.CTkLabel(card, text=agent["name"], font=ctk.CTkFont(size=16, weight="bold"), text_color=MID_BLUE)
+            name_lbl.pack(side="left", padx=24, pady=8, anchor="center")
+            # Edit and Delete buttons with more space
+            btn_frame = ctk.CTkFrame(card, fg_color=WHITE)
+            btn_frame.pack(side="right", padx=16, pady=8)
+            edit_btn = ctk.CTkButton(btn_frame, text="✏️", width=36, height=32, fg_color=ACCENT_BLUE, text_color=WHITE, command=lambda a=agent: self.edit_agent(a), font=ctk.CTkFont(size=14))
+            edit_btn.pack(side="left", padx=4)
+            edit_btn._text_label.configure(cursor="hand2")
+            edit_btn._text_label.bind("<Enter>", lambda e, b=edit_btn: b._text_label.configure(text="✏️ Edit"))
+            edit_btn._text_label.bind("<Leave>", lambda e, b=edit_btn: b._text_label.configure(text="✏️"))
+            del_btn = ctk.CTkButton(btn_frame, text="🗑️", width=36, height=32, fg_color=ERROR, text_color=WHITE, command=lambda a=agent: self.delete_agent(a), font=ctk.CTkFont(size=14))
+            del_btn.pack(side="left", padx=4)
+            del_btn._text_label.configure(cursor="hand2")
+            del_btn._text_label.bind("<Enter>", lambda e, b=del_btn: b._text_label.configure(text="🗑️ Delete"))
+            del_btn._text_label.bind("<Leave>", lambda e, b=del_btn: b._text_label.configure(text="🗑️"))
+            # Divider line below each card except last
+            if idx < len(self.agents) - 1:
+                divider = ctk.CTkFrame(self.agent_list_frame, fg_color=MID_GREY, height=1)
+                divider.pack(fill="x", padx=8, pady=(0, 8))
+    def set_fields_state(self, state):
+        self.entry_name.configure(state=state)
+        self.entry_username.configure(state=state)
+        self.entry_password.configure(state=state)
+        self.save_button.configure(state=state)
+        self.cancel_button.configure(state=state)
+    def add_agent(self):
+        self.entry_name.delete(0, "end")
+        self.entry_username.delete(0, "end")
+        self.entry_password.delete(0, "end")
+        self.set_fields_state("normal")
         self.is_editing = True
-        self.entry_agent_name.configure(state="normal", text_color="#E0E0E0")
-        self.entry_username.configure(state="normal", text_color="#E0E0E0")
-        self.entry_password.configure(state="normal", text_color="#E0E0E0")
-        self.save_permanently_checkbox.configure(state="normal")
-        self.save_changes_button.configure(state="normal")
-
-    def create_agent(self):
-        agent_name = self.entry_agent_name.get().strip()
+        self.status_label.configure(text="")
+        self.selected_agent.set("")
+    def edit_agent(self, agent):
+        self.entry_name.delete(0, "end")
+        self.entry_name.insert(0, agent["name"])
+        self.entry_username.delete(0, "end")
+        self.entry_username.insert(0, agent["username"])
+        self.entry_password.delete(0, "end")
+        self.entry_password.insert(0, self.get_password(agent["name"]))
+        self.set_fields_state("normal")
+        self.is_editing = True
+        self.selected_agent.set(agent["name"])
+        self.status_label.configure(text="")
+    def delete_agent(self, agent):
+        self.agents = [a for a in self.agents if a["name"] != agent["name"]]
+        self.save_agents()
+        self.display_agent_list()
+        self.add_agent()  # Clear form
+    def save_agent(self):
+        name = self.entry_name.get().strip()
         username = self.entry_username.get().strip()
         password = self.entry_password.get().strip()
-        is_permanent = self.save_permanently_var.get()
-
-        if not agent_name or not username or not password:
-            print("Agent Name, Username, and Password are required.")
-            if self._process_page:
-                self._process_page.update_status_label("All fields are required.", text_color="#FF4C4C")
+        if not name or not username or not password:
+            self.status_label.configure(text="All fields are required!")
             return
+        # Save to keyring
+        keyring.set_password("AutomateAgent", f"{name}_username", username)
+        keyring.set_password("AutomateAgent", f"{name}_password", password)
+        # Update local list
+        found = False
+        for agent in self.agents:
+            if agent["name"] == name:
+                agent["username"] = username
+                found = True
+        if not found:
+            self.agents.append({"name": name, "username": username})
+        self.save_agents()
+        self.display_agent_list()
+        self.set_fields_state("disabled")
+        self.is_editing = False
+        self.status_label.configure(text="Saved!", text_color=SUCCESS)
+    def cancel_edit(self):
+        self.set_fields_state("disabled")
+        self.status_label.configure(text="Cancelled.", text_color=ERROR)
+    def load_agents(self):
+        if os.path.exists(AGENTS_FILE):
+            try:
+                with open(AGENTS_FILE, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                return []
+        return []
+    def save_agents(self):
+        with open(AGENTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(self.agents, f, indent=2)
+    def get_password(self, name):
+        return keyring.get_password("AutomateAgent", f"{name}_password") or ""
 
-        if agent_name in [agent[0] for agent in self.agents]:
-            print("Agent name already exists.")
-            if self._process_page:
-                self._process_page.update_status_label("Agent name already exists.", text_color="#FF4C4C")
-            return
-
-        self.agents.append([agent_name, username, password, is_permanent])
-        self.agent_menu.configure(values=["Create New Agent"] + [agent[0] for agent in self.agents])
-        self.agent_menu.set(agent_name)
-        self.selected_agent_index.set(len(self.agents) - 1)
-        self.entry_agent_name.configure(state="disabled", text_color="#808080")
-        self.entry_username.configure(state="disabled", text_color="#808080")
-        self.entry_password.configure(state="disabled", text_color="#808080")
-        self.save_permanently_checkbox.configure(state="disabled")
-        self.edit_button.configure(state="normal")
-        self.save_changes_button.configure(state="disabled")
-        if self._process_page:
-            self._process_page.update_status_label("Agent created successfully.", text_color="#00CC00")
-
-    def save_changes(self):
-        if not self.is_editing:
-            return
-        index = self.selected_agent_index.get()
-        if index >= 0:
-            agent_name = self.entry_agent_name.get().strip()
-            username = self.entry_username.get().strip()
-            password = self.entry_password.get().strip()
-            is_permanent = self.save_permanently_var.get()
-
-            if not agent_name or not username or not password:
-                print("Agent Name, Username, and Password are required.")
-                if self._process_page:
-                    self._process_page.update_status_label("All fields are required.", text_color="#FF4C4C")
-                return
-
-            for i, agent in enumerate(self.agents):
-                if i != index and agent[0] == agent_name:
-                    print("Agent name already exists.")
-                    if self._process_page:
-                        self._process_page.update_status_label("Agent name already exists.", text_color="#FF4C4C")
-                    return
-
-            self.agents[index] = [agent_name, username, password, is_permanent]
-            self.agent_menu.configure(values=["Create New Agent"] + [agent[0] for agent in self.agents])
-            self.agent_menu.set(agent_name)
-            self.entry_agent_name.configure(state="disabled", text_color="#808080")
-            self.entry_username.configure(state="disabled", text_color="#808080")
-            self.entry_password.configure(state="disabled", text_color="#808080")
-            self.save_permanently_checkbox.configure(state="disabled")
-            self.edit_button.configure(state="normal")
-            self.save_changes_button.configure(state="disabled")
-            self.is_editing = False
-            if self._process_page:
-                self._process_page.update_status_label("Agent updated successfully.", text_color="#00CC00")
-        else:
-            print("No agent selected for editing.")
-            if self._process_page:
-                self._process_page.update_status_label("No agent selected for editing.", text_color="#FF4C4C")
-
-
-class StatsPage(ctk.CTkScrollableFrame):
+class StatsPage(ctk.CTkFrame):
     def __init__(self, master):
-        super().__init__(
-            master,
-            label_text="Aegis Statistics",
-            label_font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
-            fg_color=BG_LIGHT,
-            corner_radius=16,
-            border_width=0
-        )
+        super().__init__(master, fg_color=LIGHT_GREY, corner_radius=16)
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
-
-        # Processing Stats Header
+        # Modern, visually separated card layout
+        card_bg = MID_BLUE
+        card_fg = WHITE
+        card_border = ACCENT_BLUE
+        # Headers
         ctk.CTkLabel(
             self,
             text="Processing Stats",
-            font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
-            text_color="#E0E0E0"
-        ).grid(row=0, column=0, columnspan=2, pady=(15, 5), padx=20, sticky="w")
-
+            font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
+            text_color=ACCENT_BLUE
+        ).grid(row=0, column=0, columnspan=2, pady=(24, 8), padx=20, sticky="w")
         # Processing Stats Data
         processing_stats = {
             "PDFs Processed": 128,
@@ -648,48 +658,57 @@ class StatsPage(ctk.CTkScrollableFrame):
             "Successful Runs": 56,
             "Failed Runs": 2
         }
-
         for idx, (key, value) in enumerate(processing_stats.items()):
             col = idx % 2
             row = (idx // 2) + 1
-            frame = ctk.CTkFrame(self, fg_color=CARD_BG, corner_radius=12)
-            frame.grid(row=row, column=col, padx=14, pady=7, sticky="ew")
+            frame = ctk.CTkFrame(self, fg_color=card_bg, corner_radius=16, border_width=2, border_color=card_border)
+            frame.grid(row=row, column=col, padx=18, pady=10, sticky="ew")
             ctk.CTkLabel(
                 frame,
-                text=f"{key}: {value}",
+                text=key,
                 font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"),
-                text_color=SIDEBAR_BTN_TEXT
-            ).pack(side="left", padx=12)
-
+                text_color=ACCENT_BLUE
+            ).pack(anchor="w", padx=16, pady=(10, 0))
+            ctk.CTkLabel(
+                frame,
+                text=str(value),
+                font=ctk.CTkFont(family="Segoe UI", size=22, weight="bold"),
+                text_color=card_fg
+            ).pack(anchor="w", padx=16, pady=(0, 10))
         # Performance Metrics Header
         performance_row = (len(processing_stats) // 2) + 2
         ctk.CTkLabel(
             self,
             text="Performance Metrics",
-            font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
-            text_color="#E0E0E0"
-        ).grid(row=performance_row, column=0, columnspan=2, pady=(15, 5), padx=20, sticky="w")
-
+            font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
+            text_color=ACCENT_BLUE
+        ).grid(row=performance_row, column=0, columnspan=2, pady=(24, 8), padx=20, sticky="w")
         # Performance Metrics Data
         performance_metrics = {
             "Average Time per PDF": "3.2s",
             "Estimated Time Saved": "6.1 minutes",
             "Streak (days processing)": 3
         }
-
         for idx, (key, value) in enumerate(performance_metrics.items()):
             col = idx % 2
             row = performance_row + 1 + (idx // 2)
-            frame = ctk.CTkFrame(self, fg_color=CARD_BG, corner_radius=12)
-            frame.grid(row=row, column=col, padx=14, pady=7, sticky="ew")
+            frame = ctk.CTkFrame(self, fg_color=card_bg, corner_radius=16, border_width=2, border_color=card_border)
+            frame.grid(row=row, column=col, padx=18, pady=10, sticky="ew")
             ctk.CTkLabel(
                 frame,
-                text=f"{key}: {value}",
+                text=key,
                 font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"),
-                text_color=SIDEBAR_BTN_TEXT
-            ).pack(side="left", padx=12)
+                text_color=ACCENT_BLUE
+            ).pack(anchor="w", padx=16, pady=(10, 0))
+            ctk.CTkLabel(
+                frame,
+                text=str(value),
+                font=ctk.CTkFont(family="Segoe UI", size=22, weight="bold"),
+                text_color=card_fg
+            ).pack(anchor="w", padx=16, pady=(0, 10))
 
 
 if __name__ == "__main__":
-    app = AegisApp()
+    db.ensure_db()  # Initialize the database at app startup
+    app = AutomateAgentApp()
     app.mainloop()

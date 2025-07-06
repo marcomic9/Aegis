@@ -2,6 +2,9 @@ import os
 import re
 from dotenv import load_dotenv
 from playwright.sync_api import Page, TimeoutError, expect
+from playwright.sync_api import sync_playwright
+import time
+import random
 
 def extract_phone_numbers(page: Page) -> list:
     """
@@ -114,9 +117,31 @@ def test_virtual_agent(page: Page, username: str, password: str) -> dict:
         return result
 
 
-if __name__ == "__main__":
-    from playwright.sync_api import sync_playwright
+def human_delay(min_sec=0.5, max_sec=1.5):
+    time.sleep(random.uniform(min_sec, max_sec))
 
+def run():
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, slow_mo=200)  # headless, slow_mo for human-like
+        context = browser.new_context()
+        page = context.new_page()
+        print("[INFO] Navigating to example.com")
+        page.goto("https://example.com")
+        print("[INFO] Page loaded: https://example.com")
+        human_delay()
+        # Example: log all links
+        links = page.query_selector_all("a")
+        print(f"[INFO] Found {len(links)} links on the page.")
+        for i, link in enumerate(links):
+            href = link.get_attribute("href")
+            text = link.inner_text()
+            print(f"[LINK {i+1}] Text: {text} | Href: {href}")
+            human_delay(0.2, 0.6)
+        # Example: log page title
+        print(f"[INFO] Page title: {page.title()}")
+        browser.close()
+
+if __name__ == "__main__":
     load_dotenv()
     username = os.getenv("VIRTUAL_AGENT_USERNAME")
     password = os.getenv("VIRTUAL_AGENT_PASSWORD")
